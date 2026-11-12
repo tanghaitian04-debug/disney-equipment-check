@@ -122,7 +122,8 @@ function App() {
 
   return (
     <>
-      <div className={'shell' + (tab === 'home' ? '' : ' notoolbar')}>
+      {tab === 'home' && <div className="homebg" aria-hidden="true" />}
+      <div className={'shell' + (tab === 'home' ? ' hasbg' : ' notoolbar')}>
         {tab === 'home' && (
           <>
             <div className="hero">
@@ -192,7 +193,7 @@ function App() {
             <div className="sect-title">我的</div>
             <div className="mecard">
               <div className="inforow"><span className="k">今日日期</span><span className="v">{today.label}</span></div>
-              <div className="inforow"><span className="k">版本</span><span className="v">舞台工具箱 V1.1</span></div>
+              <div className="inforow"><span className="k">版本</span><span className="v">舞台工具箱 V1.2</span></div>
               <div className="inforow"><span className="k">排班名单</span><span className="v">17 人 · 按班表顺序</span></div>
               <div className="inforow"><span className="k">数据存储</span><span className="v">仅保存在本机浏览器</span></div>
             </div>

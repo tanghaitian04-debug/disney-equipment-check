@@ -271,3 +271,17 @@ button{font:inherit;cursor:pointer;touch-action:manipulation}
 .equip .app{padding-bottom:calc(142px + env(safe-area-inset-bottom))}
 .equip .app.has-deck{padding-bottom:calc(390px + env(safe-area-inset-bottom))}
 @media(max-height:720px){.equip .app.has-deck{padding-bottom:calc(388px + env(safe-area-inset-bottom))}}
+
+/* ================= V1.2 修复与首页背景 ================= */
+.equip nav{height:60px;padding:5px 14px;bottom:calc(58px + env(safe-area-inset-bottom));left:16px;right:16px;width:auto;transform:none;max-width:608px;margin-left:auto;margin-right:auto;border-radius:0 0 18px 18px;box-shadow:0 10px 26px rgba(4,10,26,.18)}
+.equip .deck{left:16px;right:16px;width:auto;transform:none;max-width:608px;margin-left:auto;margin-right:auto;box-shadow:0 -12px 38px rgba(4,10,26,.35)}
+.equip .app{padding-bottom:calc(150px + env(safe-area-inset-bottom))}
+.equip .app.has-deck{padding-bottom:calc(424px + env(safe-area-inset-bottom))}
+@media(max-height:720px){.equip .app.has-deck{padding-bottom:calc(422px + env(safe-area-inset-bottom))}}
+.homebg{position:fixed;inset:0;z-index:-1;background:url(/bg.jpg) center top/cover no-repeat #061230}
+.homebg::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(6,17,40,.40),rgba(6,17,40,.62) 42%,rgba(4,11,32,.93) 76%)}
+.shell.hasbg .hero{background:rgba(8,22,52,.52);backdrop-filter:blur(6px)}
+.shell.hasbg .datecard{background:rgba(7,18,42,.58);backdrop-filter:blur(6px)}
+.shell.hasbg .peoplecard{background:rgba(7,18,42,.87)}
+.shell.hasbg #preview{background:rgba(7,18,42,.88)}
+.shell.hasbg .person .chip.none{border-color:rgba(255,255,255,.35)}
