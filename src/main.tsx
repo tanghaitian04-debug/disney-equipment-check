@@ -39,10 +39,24 @@ function App() {
 
   useEffect(() => { try { localStorage.setItem(STORE, JSON.stringify({ dateKey: today.key, assign, doors })); } catch {} }, [assign, doors, today.key]);
   useEffect(() => {
-    const changed = () => setUpdateReady(true);
+    // Auto-apply updates: when a new service worker takes over and this page was
+    // already controlled by an older one, reload once so the user never has to
+    // hunt for an update button. The banner remains as a fallback.
+    const hadController = !!navigator.serviceWorker?.controller;
+    let reloaded = false;
+    const changed = () => {
+      if (hadController && !reloaded && !sessionStorage.getItem('sw-auto-reloaded')) {
+        reloaded = true;
+        try { sessionStorage.setItem('sw-auto-reloaded', '1'); } catch {}
+        location.reload();
+        return;
+      }
+      setUpdateReady(true);
+    };
     navigator.serviceWorker?.addEventListener('controllerchange', changed);
     return () => navigator.serviceWorker?.removeEventListener('controllerchange', changed);
   }, []);
+  useEffect(() => { const t = setTimeout(() => { try { sessionStorage.removeItem('sw-auto-reloaded'); } catch {} }, 4000); return () => clearTimeout(t); }, []);
   useEffect(() => {
     let lock: any = null;
     const request = async () => { try { if (!lock || lock.released) lock = await (navigator as any).wakeLock?.request('screen'); } catch {} };
@@ -193,11 +207,12 @@ function App() {
             <div className="sect-title">我的</div>
             <div className="mecard">
               <div className="inforow"><span className="k">今日日期</span><span className="v">{today.label}</span></div>
-              <div className="inforow"><span className="k">版本</span><span className="v">舞台工具箱 V1.2</span></div>
+              <div className="inforow"><span className="k">版本</span><span className="v">舞台工具箱 V1.2.1</span></div>
               <div className="inforow"><span className="k">排班名单</span><span className="v">17 人 · 按班表顺序</span></div>
               <div className="inforow"><span className="k">数据存储</span><span className="v">仅保存在本机浏览器</span></div>
             </div>
             <p className="me-note">排班：当天选好的岗位和大门板会自动保存，刷新不丢，第二天自动清空。设备记录：存在本机，按日期保存，可导出 CSV。两个工具的数据都不上传服务器。</p>
+            <button className="me-btn" style={{ borderColor: 'rgba(232,195,122,.5)', color: 'var(--gold)', marginBottom: 10 }} onClick={async () => { try { const r = await navigator.serviceWorker?.getRegistration(); await r?.update(); } catch {} location.reload(); }}>重新加载最新版</button>
             <button className="me-btn" onClick={clearToday}>清空今日排班</button>
           </>
         )}

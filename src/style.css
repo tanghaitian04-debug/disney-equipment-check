@@ -14,7 +14,7 @@ button{font:inherit;cursor:pointer;touch-action:manipulation}
 .shell.notoolbar{padding-bottom:calc(96px + env(safe-area-inset-bottom))}
 
 /* —— 顶部 —— */
-.hero{position:relative;border-radius:22px;padding:22px 20px 20px;overflow:hidden;background:radial-gradient(120% 150% at 85% -10%,rgba(232,195,122,.28),transparent 55%),linear-gradient(135deg,#123064,#0a1e42 60%,#07142e);border:1px solid var(--card-line)}
+.hero{position:relative;border-radius:22px;padding:22px 20px 20px;overflow:hidden;min-height:208px;display:flex;flex-direction:column;justify-content:flex-end;background:linear-gradient(180deg,rgba(8,20,48,.10) 30%,rgba(8,20,48,.58) 82%),url(/bg.jpg) center 18%/cover no-repeat,linear-gradient(135deg,#123064,#0a1e42 60%,#07142e);border:1px solid var(--card-line)}
 .hero .eyebrow{font-size:10.5px;letter-spacing:4px;color:var(--gold);font-weight:700}
 .hero h1{font-size:27px;margin:8px 0 6px;font-weight:800;letter-spacing:1px}
 .hero p{margin:0;font-size:13px;color:var(--txt-2)}
@@ -280,7 +280,7 @@ button{font:inherit;cursor:pointer;touch-action:manipulation}
 @media(max-height:720px){.equip .app.has-deck{padding-bottom:calc(422px + env(safe-area-inset-bottom))}}
 .homebg{position:fixed;inset:0;z-index:-1;background:url(/bg.jpg) center top/cover no-repeat #061230}
 .homebg::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(6,17,40,.40),rgba(6,17,40,.62) 42%,rgba(4,11,32,.93) 76%)}
-.shell.hasbg .hero{background:rgba(8,22,52,.52);backdrop-filter:blur(6px)}
+.hero h1,.hero p{text-shadow:0 1px 10px rgba(3,8,20,.65)}
 .shell.hasbg .datecard{background:rgba(7,18,42,.58);backdrop-filter:blur(6px)}
 .shell.hasbg .peoplecard{background:rgba(7,18,42,.87)}
 .shell.hasbg #preview{background:rgba(7,18,42,.88)}
