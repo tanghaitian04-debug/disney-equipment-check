@@ -130,7 +130,7 @@ function App() {
   return (
     <div className="app">
       <header>
-        <div className="eyebrow"><span className="led" />舞台技术 · 设备测试 <span>V1.1</span></div>
+        <div className="eyebrow"><span>舞台技术 · 设备测试</span><span className="version">V1.2</span></div>
         <h1>设备故障快速记录系统</h1>
         <div className="date">{today.replace(/-/, '年').replace(/-/, '月')}日 <span>上海时间</span></div>
         <div className="stats">
@@ -169,7 +169,7 @@ function App() {
                 ))}
               </ol>
             ) : (
-              <div className="empty"><div className="empty-icon">＋</div><h3>准备就绪，开始测试</h3><p>点击底部区域，快速记录故障设备<br />每次点击都会单独记录，支持重复编号</p></div>
+              <div className="empty"><h3>准备就绪，开始测试</h3><p>点击底部区域，快速记录故障设备<br />每次点击都会单独记录，支持重复编号</p></div>
             )}
             <aside>记录仅保存在当前设备的当前浏览器，其他设备不会自动同步。清除浏览器数据可能丢失记录，请定期导出CSV备份。<br />Safari 分享 → 添加到主屏幕，即可像App一样使用。</aside>
           </>
@@ -232,7 +232,7 @@ function App() {
                 {recentToday}
               </>
             ) : (
-              <div className="empty"><div className="empty-icon">⚙</div><h3>城堡 · 设备编号配置待完善</h3><p>本次需求未提供城堡的设备数量与编号规则，<br />未擅自编造编号。补充规则后可按花园/外围灯相同方式接入。</p><button onClick={() => navigate('home')}>返回主界面</button></div>
+              <div className="empty"><h3>城堡 · 设备编号配置待完善</h3><p>本次需求未提供城堡的设备数量与编号规则，<br />未擅自编造编号。补充规则后可按花园/外围灯相同方式接入。</p><button onClick={() => navigate('home')}>返回主界面</button></div>
             )}
           </>
         )}
@@ -240,7 +240,7 @@ function App() {
 
       <nav aria-label="设备区域">
         {regions.map((r: any, i: number) => (
-          <button key={r.id} className={page === r.id ? 'active' : ''} onClick={() => navigate(r.id)}><span>{['▦', '◉', '♜'][i]}</span>{r.name}</button>
+          <button key={r.id} className={page === r.id ? 'active' : ''} onClick={() => navigate(r.id)}>{r.name}</button>
         ))}
       </nav>
 
