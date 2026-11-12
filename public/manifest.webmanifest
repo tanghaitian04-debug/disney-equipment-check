@@ -1,1 +1,18 @@
-{"name": "设备故障快速记录系统", "short_name": "故障速记", "lang": "zh-CN", "start_url": "/", "scope": "/", "display": "standalone", "background_color": "#f5f4f0", "theme_color": "#f5f4f0", "icons": [{"src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any"}]}
+{
+ "name": "每日工作安排 · 排班生成",
+ "short_name": "每日排班",
+ "lang": "zh-CN",
+ "start_url": "/",
+ "scope": "/",
+ "display": "standalone",
+ "background_color": "#f5f4f0",
+ "theme_color": "#f5f4f0",
+ "icons": [
+  {
+   "src": "/icon.svg",
+   "sizes": "any",
+   "type": "image/svg+xml",
+   "purpose": "any"
+  }
+ ]
+}

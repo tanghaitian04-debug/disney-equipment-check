@@ -1,36 +1,61 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
-// @ts-ignore model is plain ESM with the tested business rules
-import { KEY, regions, dayKey, addRecord, csv, readRecords, roofs, outerMarked, toggleOuter, recordText, isOuter } from './model.mjs';
 import './style.css';
 
-type Row = { id: string; code: string; region: string; day: string; time: string; fault?: string; roof?: string; area?: string };
+const PEOPLE = ['郑思瑜', '马强', '贺坤华', '刘庭旭', '邵成海', '钱佳恩', '闫国豪', '陈军', '刘伟伟', '唐海添', '聂国标', '李东绪', '赵国华', '罗光荣', '张禹', '陈财', '张云翔'];
+const POSITIONS = ['控台', '视频', '观察A', '观察B', '激光X', '激光3', '激光2', '自动化', '台仓1', '台仓2', '特效', '激光观察员'];
+const SLOT_OF: Record<string, string> = {
+  '控台': '控台操作员', '视频': '视频操作员', '观察A': '观察A', '观察B': '观察B',
+  '激光X': '激光操作员', '激光3': '激光3', '激光2': '激光观察员',
+  '自动化': '自动化', '台仓1': '台仓1', '台仓2': '台仓2', '特效': '特效观察', '激光观察员': '激光观察员',
+};
+const SLOTS = ['激光操作员', '观察A', '观察B', '控台操作员', '视频操作员', '激光3', '自动化', '台仓1', '台仓2', '特效观察', '激光观察员'];
+const TEMPLATE: string[] = ["%%DATE%%", "\u821e\u53f0\u6280\u5e08\u5de5\u4f5c\u5b89\u6392:", "", "\u3010\u6fc0\u5149\u64cd\u4f5c\u5458\u3011: %%\u6fc0\u5149\u64cd\u4f5c\u5458%%", "\u3010\u89c2\u5bdfA\u3011:%%\u89c2\u5bdfA%%", "\u3010\u89c2\u5bdfB\u3011:%%\u89c2\u5bdfB%%", "\u9884\u8bbe\u5185\u5bb9\uff1a17:00\u524d\u786e\u8ba4\u7687\u5bb6\u5bb4\u4f1a\u5385\u7a97\u5e18\u9884\u8bbe\u5b8c\u6210\uff1b\u9884\u8bbe\uff1a\u6d4b\u8bd5\u6fc0\u5149\u4f4e\u529f\u7387 \u5f00219A B\u7a97\u6237\u3001\u6d4b\u8bd5 \u6c34\u5e55/\u55b7\u6cc9/\u706f\u5149/\u6295\u5f71\uff0c\u88c5\u4e8c\u697c\u6321\u677f\uff0c\u4e5d\u7c73\u5e55\u5e03\uff0c   \u6f14\u51fa\u7ed3\u675f\uff1a\u5173\u95ed219A B\u7a97\u6237\uff0c\u4e8c\u697c\u6321\u677f\uff0c\u4e5d\u7c73\u5e55\u5e03\uff09\u6ce8\u610f\u89c2\u5bdf\u73af\u5883\u706f\u5149\u4ee5\u53cashow lighting\u72b6\u6001  \u68c0\u67e5\u9884\u8bbe\u4e24\u4fa7\u70ae\u697c\u548c\u4e2d\u95f4\u4f4d\u7f6e\u55b7\u82b1\u673a\u7c73\u5947\u8033\u6735", "", "\u3010\u63a7\u53f0\u64cd\u4f5c\u5458\u3011: %%\u63a7\u53f0\u64cd\u4f5c\u5458%%", "\u3010\u89c6\u9891\u64cd\u4f5c\u5458\u3011: %%\u89c6\u9891\u64cd\u4f5c\u5458%%", "\u3010\u6fc0\u51493\u3011: %%\u6fc0\u51493%%", "\u9884\u8bbe\u5de5\u4f5c\u5185\u5bb9\uff1a\u88c5\u6536\u821e\u53f0\u55b7\u82b1\u673a \u88c5\u6536\u821e\u53f0\u56f4\u6321\u5e03\uff08 \u6d4b\u8bd5\u82b1\u56ed\u706f\u4ee5\u53ca\u6fc0\u5149\uff0c\u6ce8\u610f\u89c2\u5bdf\u73af\u5883\u706f\u5149\u4ee5\u53cashow lighting\u72b6\u6001\u3001\u6f14\u51fa\u524d\u540e\u89c2\u5bdf\u6a61\u6811\u679c\u4e0a\u5347\u4e0b\u964d\u72b6\u51b5 \u5347\u964dcenter piece", "", "\u3010\u81ea\u52a8\u5316\u3011: %%\u81ea\u52a8\u5316%%", "  \u3010\u53f0\u4ed31\u3011: %%\u53f0\u4ed31%%", " \u3010\u53f0\u4ed32\u3011: %%\u53f0\u4ed32%%", "\u3010\u7279\u6548\u89c2\u5bdf\u3011:%%\u7279\u6548\u89c2\u5bdf%%", "\u9884\u8bbe\u5de5\u4f5c\u5185\u5bb9\uff1a\u5347\u964d\u706f\u5854 \u6c34\u5e55 C0106 \u7a97\u5e18 \uff0c\u6d4b\u8bd5\u821e\u53f0\u673a\u68b0\u4ee5\u53caLED\u5c4f\u5e55\u5347\u964d\u72b6\u6001\uff0c\u5f00\u5173\u821e\u53f0\u6295\u5f71\u673a\u76d6\u677f \u68c0\u67e5\u4e24\u4fa7\u706f\u5854LED\u7535\u6e90\u72b6\u6001  \u6d4b\u8bd5\u82b1\u56edLED\u706f\u67f1 \u82b1\u8f66\u5927\u9053LED\u72b6\u6001 \u6f14\u51fa\u4e2d\u89c2\u5bdf\u82b1\u56ed\u4ee5\u53ca\u5de1\u6e38\u5927\u9053\u55b7\u82b1\u673a \u70df\u673a\u7279\u6548\u72b6\u6001", "", "\u3010\u6fc0\u5149\u89c2\u5bdf\u5458\u3011\uff1a%%\u6fc0\u5149\u89c2\u5bdf\u5458%%\uff08\u5e26\u5927\u94a5\u5319\u67dc102\u53f7\u4e07\u80fd\u94a5\u5319\u3001\u9884\u8bbe\uff1a\u540e\u573a480\u6d4b\u8bd5&\u5347\u8d77\u3001\u68c0\u67e5205\u3001221\u5c4b\u9876\u6295\u5f71\u673a\u7a7a\u8c03\u3001\u6295\u5f71\u673a\u7a7a\u8c03\u6e7f\u5ea6\uff0c\u7c73\u5947\u5927\u8857\u5c4b\u9876\u68c0\u67e5\u4e0a\u9501\uff1b\u6f14\u51fa\u7ed3\u675f\uff1a\u7c73\u5947\u5927\u8857\u5c4b\u9876\u89e3\u9501\u3001\u964d\u540e\u573a480\u5e73\u53f0\uff09\u6ce8\u610f\u89c2\u5bdf\u73af\u5883\u706f\u5149\u4ee5\u53cashow lighting\u72b6\u6001"];
+
+function slotAssignments(assign: Record<string, string>) {
+  const out: Record<string, string[]> = {};
+  for (const slot of SLOTS) out[slot] = [];
+  for (const person of PEOPLE) {
+    const pos = assign[person];
+    if (pos && SLOT_OF[pos]) out[SLOT_OF[pos]].push(person);
+  }
+  return out;
+}
+function dateLabel(date = new Date()) {
+  const parts = new Intl.DateTimeFormat('zh-CN', { timeZone: 'Asia/Shanghai', year: 'numeric', month: 'numeric', day: 'numeric' }).formatToParts(date);
+  const get = (t: string) => Number(parts.find(p => p.type === t)!.value);
+  const y = get('year'), mo = get('month'), d = get('day');
+  const wd = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'][new Date(Date.UTC(y, mo - 1, d)).getUTCDay()];
+  return { key: `${y}-${String(mo).padStart(2, '0')}-${String(d).padStart(2, '0')}`, label: `${y}年${mo}月${d}日 ${wd}` };
+}
+function buildText(dateStr: string, assign: Record<string, string>) {
+  const by = slotAssignments(assign);
+  const n = (slot: string) => by[slot].join('、');
+  return TEMPLATE.map(line => line === '%%DATE%%' ? dateStr : line.replace(/%%(.+?)%%/g, (_m, slot) => n(slot))).join('\n');
+}
+
+const STORE = 'stage-schedule-v1';
 
 function App() {
-  const [error, setError] = useState('');
-  const [rows, setRows] = useState<Row[]>(() => {
-    try { return readRecords(localStorage); } catch (e) { queueMicrotask(() => setError(String(e))); return []; }
+  const [today] = useState(dateLabel);
+  const [assign, setAssign] = useState<Record<string, string>>(() => {
+    try { const s = JSON.parse(localStorage.getItem(STORE) || 'null'); if (s && s.dateKey === dateLabel().key && s.assign) return s.assign; } catch {}
+    return {};
   });
-  const [today, setToday] = useState(dayKey());
-  const [selected, setSelected] = useState(dayKey());
-  // UI position (page + tower) is remembered separately from records, so switching
-  // tabs, a refresh, or reopening the app lands exactly where the operator left off.
-  const uiInit = (() => { try { return JSON.parse(localStorage.getItem('equipment-check-ui-v1') || '{}'); } catch { return {}; } })();
-  const [page, setPage] = useState<string>(['home', 'garden', 'outer', 'castle'].includes(uiInit.page) ? uiInit.page : 'home');
-  const [tower, setTower] = useState<number | null>(Number.isInteger(uiInit.tower) && uiInit.tower >= 1 && uiInit.tower <= 9 ? uiInit.tower : null);
-  const [uncontrolled, setUncontrolled] = useState(false);
-  const [updateReady, setUpdateReady] = useState(false);
+  const [sheetPerson, setSheetPerson] = useState<string | null>(null);
+  const [generated, setGenerated] = useState('');
+  const [showPreview, setShowPreview] = useState(false);
   const [toast, setToast] = useState('');
-  const [confirm, setConfirm] = useState(false);
-  // Generic undo: snapshots of rows before each mutation in this session (spec 2.1 撤销上一项操作)
-  const [history, setHistory] = useState<Row[][]>([]);
+  const [updateReady, setUpdateReady] = useState(false);
+  const [flash, setFlash] = useState(-1);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const rowsRef = useRef(rows); rowsRef.current = rows;
 
-  useEffect(() => { try { localStorage.setItem('equipment-check-ui-v1', JSON.stringify({ page, tower })); } catch {} }, [page, tower]);
-
-  // Keep the screen awake while the app is open (testing sessions are long);
-  // silently no-op where the Wake Lock API is unavailable.
+  useEffect(() => { try { localStorage.setItem(STORE, JSON.stringify({ dateKey: today.key, assign })); } catch {} }, [assign, today.key]);
+  useEffect(() => {
+    const changed = () => setUpdateReady(true);
+    navigator.serviceWorker?.addEventListener('controllerchange', changed);
+    return () => navigator.serviceWorker?.removeEventListener('controllerchange', changed);
+  }, []);
   useEffect(() => {
     let lock: any = null;
     const request = async () => { try { if (!lock || lock.released) lock = await (navigator as any).wakeLock?.request('screen'); } catch {} };
@@ -41,260 +66,111 @@ function App() {
     return () => { document.removeEventListener('pointerdown', request); document.removeEventListener('visibilitychange', onVis); };
   }, []);
 
-  useEffect(() => {
-    const changed = () => setUpdateReady(true);
-    navigator.serviceWorker?.addEventListener('controllerchange', changed);
-    return () => navigator.serviceWorker?.removeEventListener('controllerchange', changed);
-  }, []);
+  const notify = (msg: string) => { setToast(msg); if (timer.current) clearTimeout(timer.current); timer.current = setTimeout(() => setToast(''), 2000); };
+  const counts: Record<string, number> = {};
+  for (const p of PEOPLE) if (assign[p]) counts[assign[p]] = (counts[assign[p]] || 0) + 1;
+  const by = slotAssignments(assign);
+  const filled = SLOTS.filter(s => by[s].length).length;
+  const dupPositions = POSITIONS.filter(pos => (counts[pos] || 0) > 1);
+  const missing = SLOTS.filter(s => !by[s].length);
 
-  const notify = (s: string) => {
-    setToast(s);
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => setToast(''), 2200);
-  };
-
-  useEffect(() => {
-    const tick = () => {
-      const d = dayKey();
-      setToday(old => { if (old !== d) setSelected(s => (s === old ? d : s)); return d; });
-    };
-    const i = setInterval(tick, 1000);
-    window.addEventListener('focus', tick);
-    document.addEventListener('visibilitychange', tick);
-    return () => { clearInterval(i); window.removeEventListener('focus', tick); document.removeEventListener('visibilitychange', tick); };
-  }, []);
-
-  const persist = (next: Row[]) => {
-    try { localStorage.setItem(KEY, JSON.stringify(next)); rowsRef.current = next; setRows(next); return true; }
-    catch { setError('无法保存：浏览器存储不可用或已满。请导出记录备份后重试。'); return false; }
-  };
-  // Every mutation goes through here so undo always restores the exact previous state.
-  const mutate = (next: Row[]) => {
-    const prev = rowsRef.current;
-    if (persist(next)) { setHistory(h => [prev, ...h].slice(0, 30)); return true; }
-    return false;
-  };
-  const undoLast = () => {
-    const [prev, ...rest] = history;
-    if (!prev) return;
-    if (persist(prev)) { setHistory(rest); notify('已撤销上一项操作'); }
-  };
-  const canUndo = history.length > 0;
-
-  // Garden: spec 4.4 + 4.5 — record, reset fault to 不亮 ONLY, STAY on the same tower for continuous recording.
-  const add = (lamp: number) => {
-    if (tower === null || error) return;
-    const next = addRecord(rowsRef.current, tower, lamp, new Date(), uncontrolled ? '不受控' : '不亮');
-    if (mutate(next)) {
-      setToday(dayKey()); setSelected(dayKey());
-      setUncontrolled(false); // auto-reset fault; tower intentionally NOT reset
-      navigator.vibrate?.(10);
-      notify(`已记录 ${recordText(next[0])}`);
+  const focusNext = (after: string, next: Record<string, string>) => {
+    const idx = PEOPLE.indexOf(after);
+    for (let k = 1; k <= PEOPLE.length; k++) {
+      const j = (idx + k) % PEOPLE.length;
+      if (!next[PEOPLE[j]]) {
+        setFlash(j);
+        setTimeout(() => { document.getElementById(`person-${j}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 60);
+        setTimeout(() => setFlash(-1), 1300);
+        break;
+      }
     }
   };
-
-  const toggleLamp = (code: string) => {
-    if (error) return;
-    const now = new Date();
-    const marked = outerMarked(rowsRef.current, code, dayKey(now));
-    const next = toggleOuter(rowsRef.current, code, now);
-    if (mutate(next)) {
-      setToday(dayKey(now)); setSelected(dayKey(now));
-      navigator.vibrate?.(10);
-      notify(marked ? `已取消 ${code}` : `已记录 ${recordText(next[0])}`);
-    }
+  const pick = (pos: string) => {
+    if (!sheetPerson) return;
+    const next = { ...assign, [sheetPerson]: pos };
+    setAssign(next); setSheetPerson(null);
+    notify(`${sheetPerson} → ${pos}`);
+    focusNext(sheetPerson, next);
   };
-
-  const list = rows.filter(r => r.day === selected);
-  const todayRows = rows.filter(r => r.day === today);
-  const dates = [...new Set([today, ...rows.map(r => r.day)])].sort().reverse();
-
-  const copy = async () => {
-    const text = list.map(recordText).join('\n');
-    try { await navigator.clipboard.writeText(text); notify(`已复制 ${list.length} 条记录`); }
+  const doGenerate = (scroll = true) => {
+    setGenerated(buildText(today.label, assign));
+    setShowPreview(true);
+    if (scroll) setTimeout(() => document.getElementById('preview-wrap')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
+  };
+  const doCopy = async () => {
+    const text = buildText(today.label, assign);
+    setGenerated(text); setShowPreview(true);
+    try { await navigator.clipboard.writeText(text); notify('已复制，去微信群粘贴发送就行'); }
     catch {
-      const el = document.createElement('textarea'); el.value = text; document.body.append(el); el.select();
-      const ok = document.execCommand('copy'); el.remove(); notify(ok ? '已复制记录' : '复制失败，请长按记录复制');
+      const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select();
+      const ok = document.execCommand('copy'); ta.remove();
+      notify(ok ? '已复制，去微信群粘贴发送就行' : '复制失败，请长按文案手动复制');
     }
   };
-  const exportCSV = () => {
-    const url = URL.createObjectURL(new Blob([csv(rows)], { type: 'text/csv;charset=utf-8' }));
-    const a = document.createElement('a'); a.href = url; a.download = `设备故障记录_${today}.csv`; a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 10000); notify('已导出全部历史记录');
-  };
-  const navigate = (id: string) => {
-    window.scrollTo(0, 0); setPage(id); setUncontrolled(false); setConfirm(false);
-    if (id === 'outer') setSelected(dayKey());
-  };
-
-  const recentToday = (
-    todayRows.length > 0 && (
-      <div className="recent">
-        <div className="recent-head"><span>今日记录 · {todayRows.length} 条（最新在上）</span><button onClick={undoLast} disabled={!canUndo}>撤销上一项</button></div>
-        <ol className="records compact">
-          {todayRows.slice(0, 8).map(r => (
-            <li key={r.id}>
-              <div className="record-info">
-                <div className="record-line">{isOuter(r) && <span className="roof-tag">{r.roof}，</span>}<b>{r.code}</b>{r.fault && <span className="fault-tag">{r.fault}</span>}</div>
-                <small>{new Date(r.time).toLocaleTimeString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false })}</small>
-              </div>
-            </li>
-          ))}
-        </ol>
-        {todayRows.length > 8 && <p className="hint">仅显示最近 8 条，全部记录在主界面查看。</p>}
-      </div>
-    )
-  );
-
-  const gardenDeck = page === 'garden' && (
-    <div className="deck">
-      <div className="deck-head">
-        <strong>{tower ? `T${tower} · 选择灯具` : '先选塔号'}</strong>
-        <span className="deck-count">今日 {todayRows.length} 条</span>
-        <button disabled={!canUndo} onClick={undoLast}>撤销上一项</button>
-      </div>
-      <div className="tower-strip" role="group" aria-label="选择塔号">
-        {Array.from({ length: 9 }, (_, i) => i + 1).map(n => (
-          <button key={n} className={n === tower ? 'active' : ''} aria-pressed={n === tower} onClick={() => { setTower(n); setUncontrolled(false); }}>T{n}</button>
-        ))}
-      </div>
-      <div className="segmented" role="group" aria-label="故障类型">
-        <button className={!uncontrolled ? 'active' : ''} aria-pressed={!uncontrolled} disabled={tower === null} onClick={() => setUncontrolled(false)}>不亮</button>
-        <button className={uncontrolled ? 'active bad' : ''} aria-pressed={uncontrolled} disabled={tower === null} onClick={() => setUncontrolled(true)}>不受控</button>
-      </div>
-      <div className="grid lamps">
-        {Array.from({ length: 8 }, (_, i) => i + 1).map(n => (
-          <button disabled={!!error || tower === null} className="device" key={n} onClick={() => add(n)}>
-            <strong>{n}号</strong><small>{tower ? `7${tower}${String(n).padStart(2, '0')}` : '先选塔'}</small>
-          </button>
-        ))}
-      </div>
-      <p className="deck-hint">{tower ? '点灯号即记录，留在当前塔可连续记录' : '点上方塔号，再点灯号即记录'}</p>
-    </div>
-  );
 
   return (
-    <div className={page === 'garden' ? 'app has-deck' : 'app'}>
-      <header>
-        <div className="eyebrow"><span>舞台技术 · 设备测试</span><span className="version">V1.4</span></div>
-        <div className="title-row">
-          <h1>设备故障快速记录系统</h1>
-          <div className="count"><strong>{todayRows.length}</strong><span>今日故障</span></div>
+    <>
+      <div className="app">
+        <header>
+          <div className="eyebrow"><span>每日排班</span><span>V1.0</span></div>
+          <div className="title-row"><h1>舞台技师工作安排</h1><span id="date-line">{today.label}</span></div>
+          <p className="meta">对照经理班表，点人名选岗位；选完点「生成文案」，再点「复制」发到微信群。日期按当天自动生成，不用手改。</p>
+        </header>
+        <div className="status">
+          <span id="progress">{`岗位已填 ${filled} / ${SLOTS.length} · 已安排 ${Object.keys(assign).filter(k => assign[k]).length} 人`}</span>
+          <button id="btn-clear" onClick={() => { if (Object.keys(assign).length && confirm('清空今天已选的全部岗位？')) { setAssign({}); setShowPreview(false); notify('已清空'); } }}>清空重选</button>
         </div>
-        <div className="meta">{today.replace(/-/, '年').replace(/-/, '月')}日 · 上海时间 · 自动保存至本机</div>
-      </header>
-
-      {updateReady && <button className="update-banner" onClick={() => location.reload()}>新版本已准备好 · 点击更新（保留记录）</button>}
-      {error && <div role="alert" className="error">{error}</div>}
-
-      <main>
-        {page === 'home' ? (
-          <>
-            <div className="section-title">
-              <h2>故障记录</h2>
-              <label className="date-select">日期 <select aria-label="查看日期" value={selected} onChange={e => setSelected(e.target.value)}>{dates.map(d => <option key={d} value={d}>{d === today ? '今天' : d}</option>)}</select></label>
-            </div>
-            <div className="tools">
-              <button disabled={!list.length} onClick={copy}>复制记录</button>
-              <button disabled={!rows.length} onClick={exportCSV}>导出CSV</button>
-              <button disabled={!canUndo} onClick={undoLast}>撤销上一项</button>
-            </div>
-            <div className="list-heading"><span>{selected === today ? '今日' : selected} · {list.length} 条记录</span><button className="danger text" disabled={!list.length || !!error} onClick={() => setConfirm(true)}>清空此日</button></div>
-            {list.length ? (
-              <ol className="records">
-                {list.map((r, i) => (
-                  <li key={r.id}>
-                    <span className="record-index">{String(list.length - i).padStart(2, '0')}</span>
-                    <div className="record-info">
-                      <div className="record-line">{isOuter(r) && <span className="roof-tag">{r.roof}，</span>}<b>{r.code}</b>{r.fault && <span className="fault-tag">{r.fault}</span>}</div>
-                      <small>{r.area ? `${r.area} · ` : r.fault ? '' : '原有记录 · '}{r.region} · {new Date(r.time).toLocaleTimeString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false })}</small>
-                    </div>
-                    <button aria-label={`删除 ${r.code}`} disabled={!!error} className="delete" onClick={() => { if (mutate(rowsRef.current.filter(x => x.id !== r.id))) notify(`已删除 ${r.code}`); }}>删除</button>
-                  </li>
-                ))}
-              </ol>
-            ) : (
-              <div className="empty"><h3>准备就绪，开始测试</h3><p>点击底部区域，快速记录故障设备<br />每次点击都会单独记录，支持重复编号</p></div>
-            )}
-            <aside>记录仅保存在当前设备的当前浏览器，其他设备不会自动同步。清除浏览器数据可能丢失记录，请定期导出CSV备份。<br />Safari 分享 → 添加到主屏幕，即可像App一样使用。</aside>
-          </>
-        ) : (
-          <>
-            <div className="section-title">
-              <button className="back" onClick={() => navigate('home')}>‹ 返回记录</button>
-              <span className="badge">{page === 'garden' ? '花园' : regions.find(r => r.id === page)?.name}</span>
-            </div>
-
-            {page === 'garden' ? (
-              <>
-                <p className="hint">在下方操作台点选即记录，最新记录会出现在这里。</p>
-                {recentToday || <div className="empty"><h3>今日暂无记录</h3><p>听到对讲机报告后，在下方操作台点塔号和灯号即可。</p></div>}
-              </>
-            ) : page === 'outer' ? (
-              <>
-                <h2 className="choose-title">外围灯</h2>
-                <p className="hint">仅标记今天 · 绿色未标记，红色已记录，再点红色可取消。</p>
-                <div className="outer-summary"><span>7个区域 · 27台灯具</span><button disabled={!canUndo} onClick={undoLast}>撤销上一项</button></div>
-                <div className="area-chips">
-                  {roofs.map((g: any) => (
-                    <button key={g.roof} onClick={() => document.getElementById(`roof-${g.roof}`)?.scrollIntoView({ behavior: 'auto', block: 'start' })}>{g.name}</button>
-                  ))}
-                </div>
-                <div className="roof-list">
-                  {roofs.map((group: any) => (
-                    <section className="roof-group" id={`roof-${group.roof}`} key={group.roof}>
-                      <h3>{group.name}<span>（{group.roof}）</span></h3>
-                      <div className="outer-grid">
-                        {group.codes.map((code: string) => {
-                          const marked = outerMarked(rows, code, today);
-                          return (
-                            <button key={code} disabled={!!error} aria-label={`${group.roof} ${code}`} aria-pressed={marked} className={marked ? 'outer-lamp marked' : 'outer-lamp'} onClick={() => toggleLamp(code)}>
-                              <strong>{code}</strong><small>{marked ? '已记录 · 点击取消' : '未标记'}</small>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </section>
-                  ))}
-                </div>
-                {recentToday}
-              </>
-            ) : (
-              <div className="empty"><h3>城堡 · 设备编号配置待完善</h3><p>本次需求未提供城堡的设备数量与编号规则，<br />未擅自编造编号。补充规则后可按花园/外围灯相同方式接入。</p><button onClick={() => navigate('home')}>返回主界面</button></div>
-            )}
-          </>
-        )}
-      </main>
-
-      {gardenDeck}
-
-      <nav aria-label="设备区域">
-        {regions.map((r: any) => (
-          <button key={r.id} className={page === r.id ? 'active' : ''} onClick={() => navigate(r.id)}>
-            {r.id === 'garden' ? (
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><circle cx="12" cy="12" r="2.4"/><circle cx="12" cy="6.4" r="2.3"/><circle cx="16.9" cy="9.7" r="2.3"/><circle cx="15.5" cy="15.9" r="2.3"/><circle cx="8.5" cy="15.9" r="2.3"/><circle cx="7.1" cy="9.7" r="2.3"/></svg>
-            ) : r.id === 'outer' ? (
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3a6 6 0 0 1 3.5 10.9c-.6.5-.9 1-1 2.1h-5c-.1-1.1-.4-1.6-1-2.1A6 6 0 0 1 12 3z"/><path d="M9.8 18.2h4.4M10.6 21h2.8"/></svg>
-            ) : (
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M5 21v-10.5h2.4V7.2h2.7v3.3h3.8V7.2h2.7v3.3H19V21"/><path d="M3.6 21h16.8"/><path d="M10.3 21v-3.4a1.7 1.7 0 0 1 3.4 0V21"/></svg>
-            )}
-            <span>{r.name}</span>
-          </button>
-        ))}
-      </nav>
-
-      {toast && <div role="status" className="toast">✓ {toast}</div>}
-      {confirm && (
-        <div className="scrim">
-          <section role="alertdialog" aria-modal="true" aria-labelledby="confirm-title">
-            <h3 id="confirm-title">清空{selected}的记录？</h3>
-            <p>将删除该日全部 {list.length} 条记录。建议先导出备份。本次会话内可用“撤销上一项”恢复。</p>
-            <button onClick={() => setConfirm(false)}>保留记录</button>
-            <button className="danger" onClick={() => { if (mutate(rowsRef.current.filter(r => r.day !== selected))) notify('已清空所选日期'); setConfirm(false); }}>确认清空</button>
+        <div id="warn">{dupPositions.length ? `注意：${dupPositions.join('、')} 被选给了不止一个人` : ''}</div>
+        <div id="list">
+          {PEOPLE.map((person, i) => {
+            const pos = assign[person];
+            return (
+              <button key={person} id={`person-${i}`} className={'person' + (flash === i ? ' flash' : '')} onClick={() => setSheetPerson(person)}>
+                <span className="idx">{i + 1}</span><span className="pname">{person}</span>
+                {pos ? <span className={'chip' + (counts[pos] > 1 ? ' dup' : '')}>{pos}</span> : <span className="chip none">未选择</span>}
+                <span className="chev">›</span>
+              </button>
+            );
+          })}
+        </div>
+        {showPreview && (
+          <section id="preview-wrap" className="show">
+            <h2>生成文案</h2>
+            <div id="miss">{missing.length ? `还没选人的岗位：${missing.join('、')}（生成文案里会先空着）` : '11 个岗位都已填好，可以复制发送。'}</div>
+            <pre id="preview">{generated}</pre>
           </section>
+        )}
+      </div>
+      <div className="actionbar">
+        <button id="btn-generate" onClick={() => { doGenerate(); navigator.vibrate?.(10); }}>生成文案</button>
+        <button id="btn-copy" onClick={doCopy}>复制</button>
+      </div>
+      {sheetPerson && (
+        <div id="sheet" className="open" role="dialog" aria-modal="true" onClick={e => { if (e.target === e.currentTarget) setSheetPerson(null); }}>
+          <div className="sheet-panel">
+            <h3 id="sheet-name">{sheetPerson}</h3>
+            <p className="sub">点一下今天的岗位（已有人选的岗位也能改派，文案里会并排显示）</p>
+            <div id="chips">
+              {POSITIONS.map(pos => {
+                const taken = PEOPLE.some(p => p !== sheetPerson && assign[p] === pos);
+                return (
+                  <button key={pos} className={'pos' + (assign[sheetPerson] === pos ? ' active' : '') + (taken ? ' taken' : '')} onClick={() => pick(pos)}>
+                    {pos + (taken ? '（已有人）' : '')}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="sheet-actions">
+              <button id="sheet-clear" onClick={() => { const next = { ...assign }; delete next[sheetPerson]; setAssign(next); setSheetPerson(null); }}>不安排 / 清除</button>
+              <button id="sheet-close" onClick={() => setSheetPerson(null)}>关闭</button>
+            </div>
+          </div>
         </div>
       )}
-    </div>
+      {toast && <div id="toast" className="show">{toast}</div>}
+      {updateReady && <button className="update-banner" onClick={() => location.reload()}>新版本已准备好 · 点击更新（已选岗位不丢）</button>}
+    </>
   );
 }
 
