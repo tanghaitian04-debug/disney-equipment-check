@@ -1,48 +1,35 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
+// @ts-ignore schedule logic is plain ESM with unit tests
+import { PEOPLE, POSITIONS, SLOT_OF, SLOTS, dateLabel, buildText, doorLabel, slotAssignments } from './schedule.mjs';
+import { EquipmentApp } from './equipment';
 import './style.css';
 
-const PEOPLE = ['郑思瑜', '马强', '贺坤华', '刘庭旭', '邵成海', '钱佳恩', '闫国豪', '陈军', '刘伟伟', '唐海添', '聂国标', '李东绪', '赵国华', '罗光荣', '张禹', '陈财', '张云翔'];
-const POSITIONS = ['控台', '视频', '观察A', '观察B', '激光X', '激光3', '激光2', '自动化', '台仓1', '台仓2', '特效', '激光观察员'];
-const SLOT_OF: Record<string, string> = {
-  '控台': '控台操作员', '视频': '视频操作员', '观察A': '观察A', '观察B': '观察B',
-  '激光X': '激光操作员', '激光3': '激光3', '激光2': '激光观察员',
-  '自动化': '自动化', '台仓1': '台仓1', '台仓2': '台仓2', '特效': '特效观察', '激光观察员': '激光观察员',
-};
-const SLOTS = ['激光操作员', '观察A', '观察B', '控台操作员', '视频操作员', '激光3', '自动化', '台仓1', '台仓2', '特效观察', '激光观察员'];
-const TEMPLATE: string[] = ["%%DATE%%", "\u821e\u53f0\u6280\u5e08\u5de5\u4f5c\u5b89\u6392:", "", "\u3010\u6fc0\u5149\u64cd\u4f5c\u5458\u3011: %%\u6fc0\u5149\u64cd\u4f5c\u5458%%", "\u3010\u89c2\u5bdfA\u3011:%%\u89c2\u5bdfA%%", "\u3010\u89c2\u5bdfB\u3011:%%\u89c2\u5bdfB%%", "\u9884\u8bbe\u5185\u5bb9\uff1a17:00\u524d\u786e\u8ba4\u7687\u5bb6\u5bb4\u4f1a\u5385\u7a97\u5e18\u9884\u8bbe\u5b8c\u6210\uff1b\u9884\u8bbe\uff1a\u6d4b\u8bd5\u6fc0\u5149\u4f4e\u529f\u7387 \u5f00219A B\u7a97\u6237\u3001\u6d4b\u8bd5 \u6c34\u5e55/\u55b7\u6cc9/\u706f\u5149/\u6295\u5f71\uff0c\u88c5\u4e8c\u697c\u6321\u677f\uff0c\u4e5d\u7c73\u5e55\u5e03\uff0c   \u6f14\u51fa\u7ed3\u675f\uff1a\u5173\u95ed219A B\u7a97\u6237\uff0c\u4e8c\u697c\u6321\u677f\uff0c\u4e5d\u7c73\u5e55\u5e03\uff09\u6ce8\u610f\u89c2\u5bdf\u73af\u5883\u706f\u5149\u4ee5\u53cashow lighting\u72b6\u6001  \u68c0\u67e5\u9884\u8bbe\u4e24\u4fa7\u70ae\u697c\u548c\u4e2d\u95f4\u4f4d\u7f6e\u55b7\u82b1\u673a\u7c73\u5947\u8033\u6735", "", "\u3010\u63a7\u53f0\u64cd\u4f5c\u5458\u3011: %%\u63a7\u53f0\u64cd\u4f5c\u5458%%", "\u3010\u89c6\u9891\u64cd\u4f5c\u5458\u3011: %%\u89c6\u9891\u64cd\u4f5c\u5458%%", "\u3010\u6fc0\u51493\u3011: %%\u6fc0\u51493%%", "\u9884\u8bbe\u5de5\u4f5c\u5185\u5bb9\uff1a\u88c5\u6536\u821e\u53f0\u55b7\u82b1\u673a \u88c5\u6536\u821e\u53f0\u56f4\u6321\u5e03\uff08 \u6d4b\u8bd5\u82b1\u56ed\u706f\u4ee5\u53ca\u6fc0\u5149\uff0c\u6ce8\u610f\u89c2\u5bdf\u73af\u5883\u706f\u5149\u4ee5\u53cashow lighting\u72b6\u6001\u3001\u6f14\u51fa\u524d\u540e\u89c2\u5bdf\u6a61\u6811\u679c\u4e0a\u5347\u4e0b\u964d\u72b6\u51b5 \u5347\u964dcenter piece", "", "\u3010\u81ea\u52a8\u5316\u3011: %%\u81ea\u52a8\u5316%%", "  \u3010\u53f0\u4ed31\u3011: %%\u53f0\u4ed31%%", " \u3010\u53f0\u4ed32\u3011: %%\u53f0\u4ed32%%", "\u3010\u7279\u6548\u89c2\u5bdf\u3011:%%\u7279\u6548\u89c2\u5bdf%%", "\u9884\u8bbe\u5de5\u4f5c\u5185\u5bb9\uff1a\u5347\u964d\u706f\u5854 \u6c34\u5e55 C0106 \u7a97\u5e18 \uff0c\u6d4b\u8bd5\u821e\u53f0\u673a\u68b0\u4ee5\u53caLED\u5c4f\u5e55\u5347\u964d\u72b6\u6001\uff0c\u5f00\u5173\u821e\u53f0\u6295\u5f71\u673a\u76d6\u677f \u68c0\u67e5\u4e24\u4fa7\u706f\u5854LED\u7535\u6e90\u72b6\u6001  \u6d4b\u8bd5\u82b1\u56edLED\u706f\u67f1 \u82b1\u8f66\u5927\u9053LED\u72b6\u6001 \u6f14\u51fa\u4e2d\u89c2\u5bdf\u82b1\u56ed\u4ee5\u53ca\u5de1\u6e38\u5927\u9053\u55b7\u82b1\u673a \u70df\u673a\u7279\u6548\u72b6\u6001", "", "\u3010\u6fc0\u5149\u89c2\u5bdf\u5458\u3011\uff1a%%\u6fc0\u5149\u89c2\u5bdf\u5458%%\uff08\u5e26\u5927\u94a5\u5319\u67dc102\u53f7\u4e07\u80fd\u94a5\u5319\u3001\u9884\u8bbe\uff1a\u540e\u573a480\u6d4b\u8bd5&\u5347\u8d77\u3001\u68c0\u67e5205\u3001221\u5c4b\u9876\u6295\u5f71\u673a\u7a7a\u8c03\u3001\u6295\u5f71\u673a\u7a7a\u8c03\u6e7f\u5ea6\uff0c\u7c73\u5947\u5927\u8857\u5c4b\u9876\u68c0\u67e5\u4e0a\u9501\uff1b\u6f14\u51fa\u7ed3\u675f\uff1a\u7c73\u5947\u5927\u8857\u5c4b\u9876\u89e3\u9501\u3001\u964d\u540e\u573a480\u5e73\u53f0\uff09\u6ce8\u610f\u89c2\u5bdf\u73af\u5883\u706f\u5149\u4ee5\u53cashow lighting\u72b6\u6001"];
-
-function slotAssignments(assign: Record<string, string>) {
-  const out: Record<string, string[]> = {};
-  for (const slot of SLOTS) out[slot] = [];
-  for (const person of PEOPLE) {
-    const pos = assign[person];
-    if (pos && SLOT_OF[pos]) out[SLOT_OF[pos]].push(person);
-  }
-  return out;
-}
-function dateLabel(date = new Date()) {
-  const parts = new Intl.DateTimeFormat('zh-CN', { timeZone: 'Asia/Shanghai', year: 'numeric', month: 'numeric', day: 'numeric' }).formatToParts(date);
-  const get = (t: string) => Number(parts.find(p => p.type === t)!.value);
-  const y = get('year'), mo = get('month'), d = get('day');
-  const wd = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'][new Date(Date.UTC(y, mo - 1, d)).getUTCDay()];
-  return { key: `${y}-${String(mo).padStart(2, '0')}-${String(d).padStart(2, '0')}`, label: `${y}年${mo}月${d}日 ${wd}` };
-}
-function buildText(dateStr: string, assign: Record<string, string>) {
-  const by = slotAssignments(assign);
-  const n = (slot: string) => by[slot].join('、');
-  return TEMPLATE.map(line => line === '%%DATE%%' ? dateStr : line.replace(/%%(.+?)%%/g, (_m, slot) => n(slot))).join('\n');
-}
-
 const STORE = 'stage-schedule-v1';
+type Doors = Record<string, { z?: boolean; s?: boolean }>;
+
+const I = {
+  home: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 11l8-7 8 7" /><path d="M6 9.5V20h12V9.5" /><path d="M10 20v-5h4v5" /></svg>,
+  folder: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></svg>,
+  wrench: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14.7 6.3a4.2 4.2 0 0 1 5.9-4L17.8 5l1.6 1.6 2.8-2.8a4.2 4.2 0 0 1-5.6 5.3L9 16.7a2.1 2.1 0 1 1-3-3l2.6-2.6a4.2 4.2 0 0 1 6.1-4.8z" /></svg>,
+  me: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="3.6" /><path d="M5 20c1.2-3.2 3.8-4.8 7-4.8s5.8 1.6 7 4.8" /></svg>,
+  cal: <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5" /><path d="M3.5 10h17M8 3v4M16 3v4" /></svg>,
+};
 
 function App() {
+  const [tab, setTab] = useState('home');
   const [today] = useState(dateLabel);
   const [assign, setAssign] = useState<Record<string, string>>(() => {
-    try { const s = JSON.parse(localStorage.getItem(STORE) || 'null'); if (s && s.dateKey === dateLabel().key && s.assign) return s.assign; } catch {}
+    try { const s = JSON.parse(localStorage.getItem(STORE) || 'null'); if (s && s.dateKey === dateLabel().key) return s.assign || {}; } catch {}
+    return {};
+  });
+  const [doors, setDoors] = useState<Doors>(() => {
+    try { const s = JSON.parse(localStorage.getItem(STORE) || 'null'); if (s && s.dateKey === dateLabel().key) return s.doors || {}; } catch {}
     return {};
   });
   const [sheetPerson, setSheetPerson] = useState<string | null>(null);
+  const [selPos, setSelPos] = useState('');
+  const [selDoors, setSelDoors] = useState<{ z: boolean; s: boolean }>({ z: false, s: false });
   const [generated, setGenerated] = useState('');
   const [showPreview, setShowPreview] = useState(false);
   const [toast, setToast] = useState('');
@@ -50,7 +37,7 @@ function App() {
   const [flash, setFlash] = useState(-1);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => { try { localStorage.setItem(STORE, JSON.stringify({ dateKey: today.key, assign })); } catch {} }, [assign, today.key]);
+  useEffect(() => { try { localStorage.setItem(STORE, JSON.stringify({ dateKey: today.key, assign, doors })); } catch {} }, [assign, doors, today.key]);
   useEffect(() => {
     const changed = () => setUpdateReady(true);
     navigator.serviceWorker?.addEventListener('controllerchange', changed);
@@ -69,37 +56,53 @@ function App() {
   const notify = (msg: string) => { setToast(msg); if (timer.current) clearTimeout(timer.current); timer.current = setTimeout(() => setToast(''), 2000); };
   const counts: Record<string, number> = {};
   for (const p of PEOPLE) if (assign[p]) counts[assign[p]] = (counts[assign[p]] || 0) + 1;
-  const by = slotAssignments(assign);
+  const by = slotAssignments(assign, doors) as Record<string, string[]>;
   const filled = SLOTS.filter(s => by[s].length).length;
   const dupPositions = POSITIONS.filter(pos => (counts[pos] || 0) > 1);
   const missing = SLOTS.filter(s => !by[s].length);
+  const doorCount = PEOPLE.filter(p => doors[p] && (doors[p].z || doors[p].s)).length;
 
+  const openSheet = (person: string) => {
+    setSheetPerson(person);
+    setSelPos(assign[person] || '');
+    setSelDoors({ z: !!doors[person]?.z, s: !!doors[person]?.s });
+  };
   const focusNext = (after: string, next: Record<string, string>) => {
     const idx = PEOPLE.indexOf(after);
     for (let k = 1; k <= PEOPLE.length; k++) {
       const j = (idx + k) % PEOPLE.length;
       if (!next[PEOPLE[j]]) {
         setFlash(j);
-        setTimeout(() => { document.getElementById(`person-${j}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 60);
+        setTimeout(() => document.getElementById(`person-${j}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 60);
         setTimeout(() => setFlash(-1), 1300);
         break;
       }
     }
   };
-  const pick = (pos: string) => {
+  const confirmSheet = () => {
     if (!sheetPerson) return;
-    const next = { ...assign, [sheetPerson]: pos };
-    setAssign(next); setSheetPerson(null);
-    notify(`${sheetPerson} → ${pos}`);
-    focusNext(sheetPerson, next);
+    const nextAssign = { ...assign };
+    if (selPos) nextAssign[sheetPerson] = selPos; else delete nextAssign[sheetPerson];
+    const nextDoors = { ...doors };
+    if (selDoors.z || selDoors.s) nextDoors[sheetPerson] = { z: selDoors.z, s: selDoors.s }; else delete nextDoors[sheetPerson];
+    setAssign(nextAssign); setDoors(nextDoors);
+    const person = sheetPerson; setSheetPerson(null);
+    notify(selPos ? `${person} → ${selPos}` : `已更新 ${person}`);
+    if (selPos) focusNext(person, nextAssign);
+  };
+  const clearPerson = () => {
+    if (!sheetPerson) return;
+    const nextAssign = { ...assign }; delete nextAssign[sheetPerson];
+    const nextDoors = { ...doors }; delete nextDoors[sheetPerson];
+    setAssign(nextAssign); setDoors(nextDoors); setSheetPerson(null);
   };
   const doGenerate = (scroll = true) => {
-    setGenerated(buildText(today.label, assign));
+    setGenerated(buildText(today.label, assign, doors));
     setShowPreview(true);
     if (scroll) setTimeout(() => document.getElementById('preview-wrap')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
   };
   const doCopy = async () => {
-    const text = buildText(today.label, assign);
+    const text = buildText(today.label, assign, doors);
     setGenerated(text); setShowPreview(true);
     try { await navigator.clipboard.writeText(text); notify('已复制，去微信群粘贴发送就行'); }
     catch {
@@ -108,68 +111,140 @@ function App() {
       notify(ok ? '已复制，去微信群粘贴发送就行' : '复制失败，请长按文案手动复制');
     }
   };
+  const clearToday = () => { if ((Object.keys(assign).length || doorCount) && confirm('清空今天已选的全部岗位和大门板？')) { setAssign({}); setDoors({}); setShowPreview(false); notify('已清空'); } };
+
+  const tabs = [
+    { id: 'home', label: '首页', icon: I.home },
+    { id: 'files', label: '文件', icon: I.folder },
+    { id: 'device', label: '设备', icon: I.wrench },
+    { id: 'me', label: '我的', icon: I.me },
+  ];
 
   return (
     <>
-      <div className="app">
-        <header>
-          <div className="eyebrow"><span>每日排班</span><span>V1.0</span></div>
-          <div className="title-row"><h1>舞台技师工作安排</h1><span id="date-line">{today.label}</span></div>
-          <p className="meta">对照经理班表，点人名选岗位；选完点「生成文案」，再点「复制」发到微信群。日期按当天自动生成，不用手改。</p>
-        </header>
-        <div className="status">
-          <span id="progress">{`岗位已填 ${filled} / ${SLOTS.length} · 已安排 ${Object.keys(assign).filter(k => assign[k]).length} 人`}</span>
-          <button id="btn-clear" onClick={() => { if (Object.keys(assign).length && confirm('清空今天已选的全部岗位？')) { setAssign({}); setShowPreview(false); notify('已清空'); } }}>清空重选</button>
-        </div>
-        <div id="warn">{dupPositions.length ? `注意：${dupPositions.join('、')} 被选给了不止一个人` : ''}</div>
-        <div id="list">
-          {PEOPLE.map((person, i) => {
-            const pos = assign[person];
-            return (
-              <button key={person} id={`person-${i}`} className={'person' + (flash === i ? ' flash' : '')} onClick={() => setSheetPerson(person)}>
-                <span className="idx">{i + 1}</span><span className="pname">{person}</span>
-                {pos ? <span className={'chip' + (counts[pos] > 1 ? ' dup' : '')}>{pos}</span> : <span className="chip none">未选择</span>}
-                <span className="chev">›</span>
-              </button>
-            );
-          })}
-        </div>
-        {showPreview && (
-          <section id="preview-wrap" className="show">
-            <h2>生成文案</h2>
-            <div id="miss">{missing.length ? `还没选人的岗位：${missing.join('、')}（生成文案里会先空着）` : '11 个岗位都已填好，可以复制发送。'}</div>
-            <pre id="preview">{generated}</pre>
-          </section>
+      <div className={'shell' + (tab === 'home' ? '' : ' notoolbar')}>
+        {tab === 'home' && (
+          <>
+            <div className="hero">
+              <div className="eyebrow">NTS TEAM</div>
+              <h1>舞台工具箱</h1>
+              <p>首页就是排班：点人名选岗位，生成文案发微信群。</p>
+            </div>
+            <div className="datecard">
+              <span className="cal">{I.cal}</span>
+              <div><div className="dlabel">今日日期</div><div className="dbig">{today.key.replace(/-/g, '.')}</div></div>
+              <span className="wd">{today.label.split(' ')[1]}</span>
+            </div>
+            <div className="statusrow">
+              <span id="progress">{`岗位已填 ${filled} / ${SLOTS.length} · 已安排 ${Object.keys(assign).filter(k => assign[k]).length} 人${doorCount ? ` · 大门板 ${doorCount} 人` : ''}`}</span>
+              <button id="btn-clear" onClick={clearToday}>清空重选</button>
+            </div>
+            <div id="warn">{dupPositions.length ? `注意：${dupPositions.join('、')} 被选给了不止一个人` : ''}</div>
+            <div className="peoplecard">
+              {PEOPLE.map((person, i) => {
+                const pos = assign[person];
+                const dtag = doorLabel(person, doors).replace(/[（）]/g, '');
+                return (
+                  <button key={person} id={`person-${i}`} className={'person' + (flash === i ? ' flash' : '')} onClick={() => openSheet(person)}>
+                    <span className="idx">{i + 1}</span><span className="pname">{person}</span>
+                    {dtag && <span className="doortag">{dtag}</span>}
+                    {pos ? <span className={'chip' + (counts[pos] > 1 ? ' dup' : '')}>{pos}</span> : <span className="chip none">未选择</span>}
+                    <span className="chev">›</span>
+                  </button>
+                );
+              })}
+            </div>
+            {showPreview && (
+              <section id="preview-wrap">
+                <h2>生成文案</h2>
+                <div id="miss">{missing.length ? `还没选人的岗位：${missing.join('、')}（生成文案里会先空着）` : '11 个岗位都已填好，可以复制发送。'}</div>
+                <pre id="preview">{generated}</pre>
+              </section>
+            )}
+          </>
+        )}
+
+        {tab === 'files' && (
+          <>
+            <div className="sect-title">工具</div>
+            <div className="toolgrid">
+              <button className="toolcard c1" onClick={() => setTab('home')}><h3>舞台排班工具</h3><p>人员勾选 / 生成文案 / 复制排班</p><span className="go">›</span></button>
+              <button className="toolcard c2" onClick={() => setTab('device')}><h3>设备故障记录</h3><p>花园灯 / 外围灯 / 城堡 · 对讲机速记后誊抄</p><span className="go">›</span></button>
+              <button className="toolcard c3 off" disabled><h3>设备图</h3><p>激光点位图 / 城堡特效图 / 花园特效图 / 花园烟机</p><span className="soon">敬请期待</span></button>
+              <button className="toolcard c4 off" disabled><h3>特效物料登记表</h3><p>燃料领用 / 库存剩余 / 登记记录</p><span className="soon">敬请期待</span></button>
+            </div>
+            <p className="me-note">从这里进入对应工具。后两个还没做，你需要的话跟我说，我加上。</p>
+          </>
+        )}
+
+        {tab === 'device' && (
+          <>
+            <div className="backbar">
+              <button onClick={() => setTab('home')}>‹ 返回首页</button>
+              <span>设备故障快速记录 · 记录保存在本机</span>
+            </div>
+            <div className="equip"><EquipmentApp /></div>
+          </>
+        )}
+
+        {tab === 'me' && (
+          <>
+            <div className="sect-title">我的</div>
+            <div className="mecard">
+              <div className="inforow"><span className="k">今日日期</span><span className="v">{today.label}</span></div>
+              <div className="inforow"><span className="k">版本</span><span className="v">舞台工具箱 V1.1</span></div>
+              <div className="inforow"><span className="k">排班名单</span><span className="v">17 人 · 按班表顺序</span></div>
+              <div className="inforow"><span className="k">数据存储</span><span className="v">仅保存在本机浏览器</span></div>
+            </div>
+            <p className="me-note">排班：当天选好的岗位和大门板会自动保存，刷新不丢，第二天自动清空。设备记录：存在本机，按日期保存，可导出 CSV。两个工具的数据都不上传服务器。</p>
+            <button className="me-btn" onClick={clearToday}>清空今日排班</button>
+          </>
         )}
       </div>
-      <div className="actionbar">
-        <button id="btn-generate" onClick={() => { doGenerate(); navigator.vibrate?.(10); }}>生成文案</button>
-        <button id="btn-copy" onClick={doCopy}>复制</button>
-      </div>
+
+      {tab === 'home' && (
+        <div className="actionbar">
+          <button id="btn-generate" onClick={() => { doGenerate(); navigator.vibrate?.(10); }}>生成文案</button>
+          <button id="btn-copy" onClick={doCopy}>复制</button>
+        </div>
+      )}
+
+      <nav className="tabbar-main">
+        {tabs.map(t => (
+          <button key={t.id} className={tab === t.id ? 'active' : ''} onClick={() => { setTab(t.id); window.scrollTo(0, 0); }}>{t.icon}<span>{t.label}</span></button>
+        ))}
+      </nav>
+
       {sheetPerson && (
-        <div id="sheet" className="open" role="dialog" aria-modal="true" onClick={e => { if (e.target === e.currentTarget) setSheetPerson(null); }}>
+        <div id="sheet" role="dialog" aria-modal="true" onClick={e => { if (e.target === e.currentTarget) setSheetPerson(null); }}>
           <div className="sheet-panel">
             <h3 id="sheet-name">{sheetPerson}</h3>
-            <p className="sub">点一下今天的岗位（已有人选的岗位也能改派，文案里会并排显示）</p>
+            <p className="sub">先点今天的岗位，再勾大门板（没有就不勾），最后点确定。</p>
             <div id="chips">
               {POSITIONS.map(pos => {
                 const taken = PEOPLE.some(p => p !== sheetPerson && assign[p] === pos);
                 return (
-                  <button key={pos} className={'pos' + (assign[sheetPerson] === pos ? ' active' : '') + (taken ? ' taken' : '')} onClick={() => pick(pos)}>
+                  <button key={pos} className={'pos' + (selPos === pos ? ' active' : '') + (taken ? ' taken' : '')} onClick={() => setSelPos(pos)}>
                     {pos + (taken ? '（已有人）' : '')}
                   </button>
                 );
               })}
             </div>
+            <div className="door-title">大门板（可多选，会写在人名后面）</div>
+            <div className="door-row">
+              <button className={'door' + (selDoors.z ? ' on' : '')} onClick={() => setSelDoors(d => ({ ...d, z: !d.z }))}>装大门板</button>
+              <button className={'door' + (selDoors.s ? ' on' : '')} onClick={() => setSelDoors(d => ({ ...d, s: !d.s }))}>收大门板</button>
+            </div>
             <div className="sheet-actions">
-              <button id="sheet-clear" onClick={() => { const next = { ...assign }; delete next[sheetPerson]; setAssign(next); setSheetPerson(null); }}>不安排 / 清除</button>
-              <button id="sheet-close" onClick={() => setSheetPerson(null)}>关闭</button>
+              <button id="sheet-clear" onClick={clearPerson}>不安排 / 清除</button>
+              <button onClick={() => setSheetPerson(null)}>关闭</button>
+              <button className="ok" onClick={confirmSheet}>确定</button>
             </div>
           </div>
         </div>
       )}
-      {toast && <div id="toast" className="show">{toast}</div>}
-      {updateReady && <button className="update-banner" onClick={() => location.reload()}>新版本已准备好 · 点击更新（已选岗位不丢）</button>}
+      {toast && <div id="toast">{toast}</div>}
+      {updateReady && <button className="update-banner" onClick={() => location.reload()}>新版本已准备好 · 点击更新（数据不丢）</button>}
     </>
   );
 }

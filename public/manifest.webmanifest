@@ -1,12 +1,12 @@
 {
- "name": "每日工作安排 · 排班生成",
- "short_name": "每日排班",
+ "name": "舞台工具箱",
+ "short_name": "舞台工具箱",
  "lang": "zh-CN",
  "start_url": "/",
  "scope": "/",
  "display": "standalone",
- "background_color": "#f5f4f0",
- "theme_color": "#f5f4f0",
+ "background_color": "#081a3a",
+ "theme_color": "#081a3a",
  "icons": [
   {
    "src": "/icon.svg",
