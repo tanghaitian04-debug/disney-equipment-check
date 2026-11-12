@@ -13,8 +13,11 @@ function App() {
   });
   const [today, setToday] = useState(dayKey());
   const [selected, setSelected] = useState(dayKey());
-  const [page, setPage] = useState('home');
-  const [tower, setTower] = useState<number | null>(null);
+  // UI position (page + tower) is remembered separately from records, so switching
+  // tabs, a refresh, or reopening the app lands exactly where the operator left off.
+  const uiInit = (() => { try { return JSON.parse(localStorage.getItem('equipment-check-ui-v1') || '{}'); } catch { return {}; } })();
+  const [page, setPage] = useState<string>(['home', 'garden', 'outer', 'castle'].includes(uiInit.page) ? uiInit.page : 'home');
+  const [tower, setTower] = useState<number | null>(Number.isInteger(uiInit.tower) && uiInit.tower >= 1 && uiInit.tower <= 9 ? uiInit.tower : null);
   const [uncontrolled, setUncontrolled] = useState(false);
   const [updateReady, setUpdateReady] = useState(false);
   const [toast, setToast] = useState('');
@@ -23,6 +26,20 @@ function App() {
   const [history, setHistory] = useState<Row[][]>([]);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const rowsRef = useRef(rows); rowsRef.current = rows;
+
+  useEffect(() => { try { localStorage.setItem('equipment-check-ui-v1', JSON.stringify({ page, tower })); } catch {} }, [page, tower]);
+
+  // Keep the screen awake while the app is open (testing sessions are long);
+  // silently no-op where the Wake Lock API is unavailable.
+  useEffect(() => {
+    let lock: any = null;
+    const request = async () => { try { if (!lock || lock.released) lock = await (navigator as any).wakeLock?.request('screen'); } catch {} };
+    const onVis = () => { if (document.visibilityState === 'visible') request(); };
+    document.addEventListener('pointerdown', request);
+    document.addEventListener('visibilitychange', onVis);
+    request();
+    return () => { document.removeEventListener('pointerdown', request); document.removeEventListener('visibilitychange', onVis); };
+  }, []);
 
   useEffect(() => {
     const changed = () => setUpdateReady(true);
@@ -71,6 +88,7 @@ function App() {
     if (mutate(next)) {
       setToday(dayKey()); setSelected(dayKey());
       setUncontrolled(false); // auto-reset fault; tower intentionally NOT reset
+      navigator.vibrate?.(10);
       notify(`已记录 ${recordText(next[0])}`);
     }
   };
@@ -82,6 +100,7 @@ function App() {
     const next = toggleOuter(rowsRef.current, code, now);
     if (mutate(next)) {
       setToday(dayKey(now)); setSelected(dayKey(now));
+      navigator.vibrate?.(10);
       notify(marked ? `已取消 ${code}` : `已记录 ${recordText(next[0])}`);
     }
   };
@@ -104,7 +123,7 @@ function App() {
     setTimeout(() => URL.revokeObjectURL(url), 10000); notify('已导出全部历史记录');
   };
   const navigate = (id: string) => {
-    window.scrollTo(0, 0); setPage(id); setTower(null); setUncontrolled(false); setConfirm(false);
+    window.scrollTo(0, 0); setPage(id); setUncontrolled(false); setConfirm(false);
     if (id === 'outer') setSelected(dayKey());
   };
 
@@ -130,38 +149,34 @@ function App() {
   const gardenDeck = page === 'garden' && (
     <div className="deck">
       <div className="deck-head">
-        <strong>{tower ? `T${tower} · 选择灯具` : '选择花园塔'}</strong>
+        <strong>{tower ? `T${tower} · 选择灯具` : '先选塔号'}</strong>
         <span className="deck-count">今日 {todayRows.length} 条</span>
         <button disabled={!canUndo} onClick={undoLast}>撤销上一项</button>
       </div>
-      {tower !== null && (
-        <>
-          <div className="tower-strip" role="group" aria-label="快速切换塔号">
-            {Array.from({ length: 9 }, (_, i) => i + 1).map(n => (
-              <button key={n} className={n === tower ? 'active' : ''} aria-pressed={n === tower} onClick={() => { setTower(n); setUncontrolled(false); }}>T{n}</button>
-            ))}
-          </div>
-          <label className={uncontrolled ? 'fault-option checked' : 'fault-option'}>
-            <input type="checkbox" checked={uncontrolled} onChange={e => setUncontrolled(e.target.checked)} />
-            <strong>不受控</strong><span>{uncontrolled ? '本条记录为不受控' : '未勾选 · 默认不亮'}</span>
-          </label>
-        </>
-      )}
-      <div className={tower ? 'grid lamps' : 'grid towers'}>
-        {Array.from({ length: tower ? 8 : 9 }, (_, i) => i + 1).map(n => (
-          <button disabled={!!error} className="device" key={n} onClick={() => { if (tower) add(n); else { setUncontrolled(false); setTower(n); } }}>
-            <strong>{tower ? `${n}号` : `T${n}`}</strong><small>{tower ? `7${tower}${String(n).padStart(2, '0')}` : '花园塔'}</small>
+      <div className="tower-strip" role="group" aria-label="选择塔号">
+        {Array.from({ length: 9 }, (_, i) => i + 1).map(n => (
+          <button key={n} className={n === tower ? 'active' : ''} aria-pressed={n === tower} onClick={() => { setTower(n); setUncontrolled(false); }}>T{n}</button>
+        ))}
+      </div>
+      <div className="segmented" role="group" aria-label="故障类型">
+        <button className={!uncontrolled ? 'active' : ''} aria-pressed={!uncontrolled} disabled={tower === null} onClick={() => setUncontrolled(false)}>不亮</button>
+        <button className={uncontrolled ? 'active bad' : ''} aria-pressed={uncontrolled} disabled={tower === null} onClick={() => setUncontrolled(true)}>不受控</button>
+      </div>
+      <div className="grid lamps">
+        {Array.from({ length: 8 }, (_, i) => i + 1).map(n => (
+          <button disabled={!!error || tower === null} className="device" key={n} onClick={() => add(n)}>
+            <strong>{n}号</strong><small>{tower ? `7${tower}${String(n).padStart(2, '0')}` : '先选塔'}</small>
           </button>
         ))}
       </div>
-      <p className="deck-hint">{tower ? '点灯号即记录，留在当前塔可连续记录' : '点塔号，再点灯号即记录'}</p>
+      <p className="deck-hint">{tower ? '点灯号即记录，留在当前塔可连续记录' : '点上方塔号，再点灯号即记录'}</p>
     </div>
   );
 
   return (
     <div className={page === 'garden' ? 'app has-deck' : 'app'}>
       <header>
-        <div className="eyebrow"><span>舞台技术 · 设备测试</span><span className="version">V1.3</span></div>
+        <div className="eyebrow"><span>舞台技术 · 设备测试</span><span className="version">V1.4</span></div>
         <div className="title-row">
           <h1>设备故障快速记录系统</h1>
           <div className="count"><strong>{todayRows.length}</strong><span>今日故障</span></div>
@@ -206,7 +221,7 @@ function App() {
         ) : (
           <>
             <div className="section-title">
-              <button className="back" onClick={() => { setUncontrolled(false); tower ? setTower(null) : navigate('home'); }}>‹ {tower ? '返回塔选择' : '返回记录'}</button>
+              <button className="back" onClick={() => navigate('home')}>‹ 返回记录</button>
               <span className="badge">{page === 'garden' ? '花园' : regions.find(r => r.id === page)?.name}</span>
             </div>
 
@@ -222,7 +237,7 @@ function App() {
                 <div className="outer-summary"><span>7个区域 · 27台灯具</span><button disabled={!canUndo} onClick={undoLast}>撤销上一项</button></div>
                 <div className="area-chips">
                   {roofs.map((g: any) => (
-                    <button key={g.roof} onClick={() => document.getElementById(`roof-${g.roof}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>{g.name}</button>
+                    <button key={g.roof} onClick={() => document.getElementById(`roof-${g.roof}`)?.scrollIntoView({ behavior: 'auto', block: 'start' })}>{g.name}</button>
                   ))}
                 </div>
                 <div className="roof-list">

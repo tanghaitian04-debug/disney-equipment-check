@@ -43,7 +43,7 @@ button:disabled{opacity:.38;cursor:default;box-shadow:none}
 button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 
 .app{max-width:640px;margin:auto;padding:calc(14px + env(safe-area-inset-top)) 18px calc(84px + env(safe-area-inset-bottom))}
-.app.has-deck{padding-bottom:calc(356px + env(safe-area-inset-bottom))}
+.app.has-deck{padding-bottom:calc(332px + env(safe-area-inset-bottom))}
 
 /* —— 紧凑顶栏 —— */
 header{padding-bottom:11px;border-bottom:4px double var(--ink)}
@@ -122,17 +122,16 @@ aside{font-size:11px;color:var(--ink-3);line-height:1.9;padding-top:14px}
 .lamps .device strong{font-size:16px}
 @media(max-width:340px){.lamps{grid-template-columns:repeat(2,1fr)}}
 
-.tower-strip{display:flex;gap:5px;overflow-x:auto;padding:1px 0 8px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
-.tower-strip::-webkit-scrollbar{display:none}
-.tower-strip button{flex:0 0 auto;min-width:44px;min-height:34px;padding:5px 8px;font-size:13px;font-weight:550;border-radius:8px}
+.tower-strip{display:flex;gap:5px;padding:1px 0 8px}
+.tower-strip button{flex:1;min-width:0;min-height:36px;padding:5px 0;font-size:13.5px;font-weight:550;border-radius:8px}
 .tower-strip button.active{background:var(--ink);border-color:var(--ink);color:#fff;box-shadow:none}
 
-.fault-option{display:flex;align-items:center;gap:9px;min-height:42px;border:1px solid var(--line-2);border-radius:9px;padding:7px 10px;margin:0 0 9px;background:var(--surface);cursor:pointer;touch-action:manipulation}
-.fault-option input{width:20px;height:20px;margin:0;accent-color:var(--accent)}
-.fault-option strong{font-size:14px;font-weight:600}
-.fault-option span{font-size:10.5px;color:var(--ink-3);margin-left:auto}
-.fault-option.checked{border-color:var(--accent);background:var(--accent-bg)}
-.fault-option.checked strong{color:var(--accent)}
+.segmented{display:flex;gap:3px;background:var(--surface-2);border-radius:10px;padding:3px;margin:0 0 8px}
+.segmented button{flex:1;min-height:38px;border:0;background:transparent;box-shadow:none;border-radius:8px;font-size:14.5px;font-weight:600;color:var(--ink-2);padding:6px 0}
+.segmented button:active{transform:none;background:transparent}
+.segmented button.active{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(25,27,30,.18)}
+.segmented button.active.bad{background:var(--accent);color:#fff;box-shadow:none}
+.segmented button:disabled{opacity:.45}
 
 /* —— 记录区（花园页） —— */
 .recent{margin-top:4px}
