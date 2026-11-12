@@ -127,16 +127,46 @@ function App() {
     )
   );
 
+  const gardenDeck = page === 'garden' && (
+    <div className="deck">
+      <div className="deck-head">
+        <strong>{tower ? `T${tower} · 选择灯具` : '选择花园塔'}</strong>
+        <span className="deck-count">今日 {todayRows.length} 条</span>
+        <button disabled={!canUndo} onClick={undoLast}>撤销上一项</button>
+      </div>
+      {tower !== null && (
+        <>
+          <div className="tower-strip" role="group" aria-label="快速切换塔号">
+            {Array.from({ length: 9 }, (_, i) => i + 1).map(n => (
+              <button key={n} className={n === tower ? 'active' : ''} aria-pressed={n === tower} onClick={() => { setTower(n); setUncontrolled(false); }}>T{n}</button>
+            ))}
+          </div>
+          <label className={uncontrolled ? 'fault-option checked' : 'fault-option'}>
+            <input type="checkbox" checked={uncontrolled} onChange={e => setUncontrolled(e.target.checked)} />
+            <strong>不受控</strong><span>{uncontrolled ? '本条记录为不受控' : '未勾选 · 默认不亮'}</span>
+          </label>
+        </>
+      )}
+      <div className={tower ? 'grid lamps' : 'grid towers'}>
+        {Array.from({ length: tower ? 8 : 9 }, (_, i) => i + 1).map(n => (
+          <button disabled={!!error} className="device" key={n} onClick={() => { if (tower) add(n); else { setUncontrolled(false); setTower(n); } }}>
+            <strong>{tower ? `${n}号` : `T${n}`}</strong><small>{tower ? `7${tower}${String(n).padStart(2, '0')}` : '花园塔'}</small>
+          </button>
+        ))}
+      </div>
+      <p className="deck-hint">{tower ? '点灯号即记录，留在当前塔可连续记录' : '点塔号，再点灯号即记录'}</p>
+    </div>
+  );
+
   return (
-    <div className="app">
+    <div className={page === 'garden' ? 'app has-deck' : 'app'}>
       <header>
-        <div className="eyebrow"><span>舞台技术 · 设备测试</span><span className="version">V1.2</span></div>
-        <h1>设备故障快速记录系统</h1>
-        <div className="date">{today.replace(/-/, '年').replace(/-/, '月')}日 <span>上海时间</span></div>
-        <div className="stats">
-          <div><small>今日故障数量</small><strong>{todayRows.length}<em> 条</em></strong></div>
-          <div className="saved">● 自动保存至本机</div>
+        <div className="eyebrow"><span>舞台技术 · 设备测试</span><span className="version">V1.3</span></div>
+        <div className="title-row">
+          <h1>设备故障快速记录系统</h1>
+          <div className="count"><strong>{todayRows.length}</strong><span>今日故障</span></div>
         </div>
+        <div className="meta">{today.replace(/-/, '年').replace(/-/, '月')}日 · 上海时间 · 自动保存至本机</div>
       </header>
 
       {updateReady && <button className="update-banner" onClick={() => location.reload()}>新版本已准备好 · 点击更新（保留记录）</button>}
@@ -182,39 +212,22 @@ function App() {
 
             {page === 'garden' ? (
               <>
-                <h2 className="choose-title">{tower ? `T${tower} · 选择灯具` : '选择花园塔'}</h2>
-                <p className="hint">{tower ? '点选即记录，不离开当前塔，可连续记录；也可直接点下方塔号切换' : '选择塔编号，再选择故障灯具'}</p>
-                {tower !== null && (
-                  <>
-                    <div className="tower-strip" role="group" aria-label="快速切换塔号">
-                      {Array.from({ length: 9 }, (_, i) => i + 1).map(n => (
-                        <button key={n} className={n === tower ? 'active' : ''} aria-pressed={n === tower} onClick={() => { setTower(n); setUncontrolled(false); }}>T{n}</button>
-                      ))}
-                    </div>
-                    <label className={uncontrolled ? 'fault-option checked' : 'fault-option'}>
-                      <input type="checkbox" checked={uncontrolled} onChange={e => setUncontrolled(e.target.checked)} />
-                      <strong>不受控</strong><span>{uncontrolled ? '本条记录为不受控' : '未勾选 · 默认不亮'}</span>
-                    </label>
-                  </>
-                )}
-                <div className={tower ? 'grid lamps' : 'grid towers'}>
-                  {Array.from({ length: tower ? 8 : 9 }, (_, i) => i + 1).map(n => (
-                    <button disabled={!!error} className="device" key={n} onClick={() => { if (tower) add(n); else { setUncontrolled(false); setTower(n); } }}>
-                      <strong>{tower ? `${n}号` : `T${n}`}</strong><small>{tower ? `7${tower}${String(n).padStart(2, '0')}` : '花园塔'}</small>
-                    </button>
-                  ))}
-                </div>
-                <div className="quick-status"><span>今日已记录 <b>{todayRows.length}</b> 条</span><button disabled={!canUndo} onClick={undoLast}>撤销上一条</button></div>
-                {recentToday}
+                <p className="hint">在下方操作台点选即记录，最新记录会出现在这里。</p>
+                {recentToday || <div className="empty"><h3>今日暂无记录</h3><p>听到对讲机报告后，在下方操作台点塔号和灯号即可。</p></div>}
               </>
             ) : page === 'outer' ? (
               <>
                 <h2 className="choose-title">外围灯</h2>
-                <p className="hint">仅标记今天 · 绿色未标记，红色已记录<br />再点红色灯具可取消，不会修改历史日期。</p>
+                <p className="hint">仅标记今天 · 绿色未标记，红色已记录，再点红色可取消。</p>
                 <div className="outer-summary"><span>7个区域 · 27台灯具</span><button disabled={!canUndo} onClick={undoLast}>撤销上一项</button></div>
+                <div className="area-chips">
+                  {roofs.map((g: any) => (
+                    <button key={g.roof} onClick={() => document.getElementById(`roof-${g.roof}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>{g.name}</button>
+                  ))}
+                </div>
                 <div className="roof-list">
                   {roofs.map((group: any) => (
-                    <section className="roof-group" key={group.roof}>
+                    <section className="roof-group" id={`roof-${group.roof}`} key={group.roof}>
                       <h3>{group.name}<span>（{group.roof}）</span></h3>
                       <div className="outer-grid">
                         {group.codes.map((code: string) => {
@@ -238,9 +251,20 @@ function App() {
         )}
       </main>
 
+      {gardenDeck}
+
       <nav aria-label="设备区域">
-        {regions.map((r: any, i: number) => (
-          <button key={r.id} className={page === r.id ? 'active' : ''} onClick={() => navigate(r.id)}>{r.name}</button>
+        {regions.map((r: any) => (
+          <button key={r.id} className={page === r.id ? 'active' : ''} onClick={() => navigate(r.id)}>
+            {r.id === 'garden' ? (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><circle cx="12" cy="12" r="2.4"/><circle cx="12" cy="6.4" r="2.3"/><circle cx="16.9" cy="9.7" r="2.3"/><circle cx="15.5" cy="15.9" r="2.3"/><circle cx="8.5" cy="15.9" r="2.3"/><circle cx="7.1" cy="9.7" r="2.3"/></svg>
+            ) : r.id === 'outer' ? (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3a6 6 0 0 1 3.5 10.9c-.6.5-.9 1-1 2.1h-5c-.1-1.1-.4-1.6-1-2.1A6 6 0 0 1 12 3z"/><path d="M9.8 18.2h4.4M10.6 21h2.8"/></svg>
+            ) : (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M5 21v-10.5h2.4V7.2h2.7v3.3h3.8V7.2h2.7v3.3H19V21"/><path d="M3.6 21h16.8"/><path d="M10.3 21v-3.4a1.7 1.7 0 0 1 3.4 0V21"/></svg>
+            )}
+            <span>{r.name}</span>
+          </button>
         ))}
       </nav>
 
