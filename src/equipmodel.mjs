@@ -20,6 +20,33 @@ export function shiftDay(key, delta) {
   d.setTime(d.getTime() + delta * 86400000);
   return dayKey(d);
 }
+// Inspection day: the check day rolls over at 01:00 Asia/Shanghai, not at midnight.
+// 00:00-00:59 Shanghai time still belongs to the previous inspection day.
+export function inspectionDayKey(date = new Date()) {
+  const cal = dayKey(date);
+  const hour = Number(new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Shanghai', hour: '2-digit', hourCycle: 'h23' }).format(date));
+  return hour < 1 ? shiftDay(cal, -1) : cal;
+}
+export function dateCN(key) {
+  const p = String(key).split('-').map(Number);
+  return p.length === 3 && p.every(n => Number.isFinite(n)) ? `${p[0]}年${p[1]}月${p[2]}日` : String(key);
+}
+// Devices faulted on the previous inspection day but not on `day` itself, in catalog order.
+export function recoveredFor(store, day) {
+  const prev = dayRecords(store, shiftDay(day, -1));
+  const cur = dayRecords(store, day);
+  return DEVICES.filter(d => prev[d.uid] && !cur[d.uid])
+    .map(d => ({ d, prevReason: prev[d.uid].reason, prevTime: prev[d.uid].time }));
+}
+// Load the V2 store, migrating legacy V1 records once when V2 does not exist yet.
+export function initStore(storage) {
+  const existing = loadStore(storage);
+  if (existing) return { store: existing, migrated: 0 };
+  const { store, count } = migrateV1(storage);
+  saveStore(storage, store);
+  return { store, migrated: count };
+}
+
 export function fmtTime(iso) {
   const d = new Date(iso);
   if (isNaN(d.getTime())) return '';
@@ -104,24 +131,29 @@ export function reportSegments(d) {
   return segs;
 }
 
+export function fullSegments(d) { return [d.cat, ...reportSegments(d)]; }
+
 export function reportText(day, store) {
   const recs = dayRecords(store, day);
-  const total = Object.keys(recs).length;
-  const lines = ['设备故障检查报告', '', `检查日期：${day}`, '', `故障设备总数：${total}`, ''];
-  if (!total) { lines.push('暂无故障', '', '——本次检查结束——'); return lines.join('\n'); }
-  let n = 0;
-  for (const cat of CATS) {
-    const items = DEVICES.filter(d => d.cat === cat && recs[d.uid]);
-    if (!items.length) continue;
-    lines.push(`【${cat}】`, '');
-    for (const d of items) {
-      n++;
-      lines.push(`${n}. ${reportSegments(d).join(' / ')}`);
-      lines.push(`    故障原因：${recs[d.uid].reason}`);
-    }
-    lines.push('');
+  const faults = DEVICES.filter(d => recs[d.uid]);
+  const recov = recoveredFor(store, day);
+  const lines = [
+    '设备检查结果', '',
+    `检查日期：${dateCN(day)}`, '',
+    `当前故障：${faults.length}台`, '',
+    `已恢复：${recov.length}台`, '',
+    '【当前故障】', '',
+  ];
+  if (!faults.length) lines.push('无', '');
+  for (const d of faults) {
+    lines.push(fullSegments(d).join(' / '), '', `故障原因：${recs[d.uid].reason}`, '');
   }
-  lines.push('——本次检查结束——');
+  lines.push('【已恢复】', '');
+  if (!recov.length) lines.push('无', '');
+  for (const { d, prevReason } of recov) {
+    lines.push(fullSegments(d).join(' / '), '', '状态：已恢复', '', `上一检查日故障：${prevReason}`, '');
+  }
+  lines.push('——检查结束——');
   return lines.join('\n');
 }
 

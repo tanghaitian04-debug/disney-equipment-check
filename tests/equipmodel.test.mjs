@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { DEVICES } from '../src/devices.mjs';
-import { legacyUid, migrateV1, reportText, reportSegments, emptyStore } from '../src/equipmodel.mjs';
+import { legacyUid, migrateV1, reportText, reportSegments, emptyStore, inspectionDayKey, recoveredFor } from '../src/equipmodel.mjs';
 
 const fakeStorage = obj => ({ getItem: k => (k in obj ? obj[k] : null), setItem: () => {} });
 
@@ -37,25 +37,52 @@ test('report segments strip the sub prefix like the spec example', () => {
   assert.deepEqual(reportSegments(tower), ['花园塔-Ckc Vh5', '塔1', '7102']);
 });
 
-test('report text follows the spec format with continuous numbering', () => {
+test('inspection day rolls over at 01:00 Asia/Shanghai, not midnight', () => {
+  assert.equal(inspectionDayKey(new Date('2026-11-16T00:00:00+08:00')), '2026-11-15');
+  assert.equal(inspectionDayKey(new Date('2026-11-16T00:59:59+08:00')), '2026-11-15');
+  assert.equal(inspectionDayKey(new Date('2026-11-16T01:00:00+08:00')), '2026-11-16');
+  assert.equal(inspectionDayKey(new Date('2026-11-16T23:59:00+08:00')), '2026-11-16');
+  assert.equal(inspectionDayKey(new Date('2026-11-15T17:30:00+08:00')), '2026-11-15');
+});
+
+test('recovered = faulted yesterday, not faulted today; shown only on the first day after', () => {
   const store = emptyStore();
-  const roof = DEVICES.find(d => d.name === 'Roof 1（219A） 7001');
-  const tower = DEVICES.find(d => d.name === '塔1 7102');
-  const fx = DEVICES.find(d => d.cat === '特效');
-  store.days['2026-11-16'] = {
-    [roof.uid]: { name: roof.name, path: 'x', reason: '不亮', time: '2026-11-16T06:35:00.000Z' },
-    [tower.uid]: { name: tower.name, path: 'x', reason: '不受控', time: '2026-11-16T06:37:00.000Z' },
-    [fx.uid]: { name: fx.name, path: 'x', reason: '无法正常启动', time: '2026-11-16T06:40:00.000Z' },
+  const a = DEVICES.find(d => d.name === 'Roof 1（219A） 7001');
+  const b = DEVICES.find(d => d.name === '塔1 7102');
+  store.days['2026-11-14'] = {
+    [a.uid]: { name: a.name, path: 'x', reason: '不亮', time: '2026-11-14T06:00:00.000Z' },
+    [b.uid]: { name: b.name, path: 'x', reason: '闪烁', time: '2026-11-14T06:05:00.000Z' },
   };
-  const txt = reportText('2026-11-16', store);
-  assert.ok(txt.startsWith('设备故障检查报告\n\n检查日期：2026-11-16\n\n故障设备总数：3'));
-  assert.ok(txt.includes('【灯光】'));
-  assert.ok(txt.includes('2. 花园屋顶-580 Beam / Roof 1（219A） / 7001\n    故障原因：不亮'));
-  assert.ok(txt.includes('1. 花园塔-Ckc Vh5 / 塔1 / 7102\n    故障原因：不受控'));
-  assert.ok(txt.includes('【特效】'));
-  assert.ok(txt.includes(`3. ${reportSegments(fx).join(' / ')}\n    故障原因：无法正常启动`));
-  assert.ok(txt.endsWith('——本次检查结束——'));
-  const empty = reportText('2026-11-16', emptyStore());
-  assert.ok(empty.includes('故障设备总数：0'));
-  assert.ok(empty.includes('暂无故障'));
+  store.days['2026-11-15'] = {
+    [b.uid]: { name: b.name, path: 'x', reason: '不受控', time: '2026-11-15T06:00:00.000Z' },
+  };
+  const rec15 = recoveredFor(store, '2026-11-15');
+  assert.equal(rec15.length, 1);
+  assert.equal(rec15[0].d.uid, a.uid);
+  assert.equal(rec15[0].prevReason, '不亮');
+  // 11-16: a was already recovered on 11-15, so it must not repeat; b ended on 11-15 -> recovered on 11-16
+  const rec16 = recoveredFor(store, '2026-11-16');
+  assert.equal(rec16.length, 1);
+  assert.equal(rec16[0].d.uid, b.uid);
+  assert.equal(rec16[0].prevReason, '不受控');
+});
+
+test('report text follows the V2.1 format with faults and recovered sections', () => {
+  const store = emptyStore();
+  const roof = DEVICES.find(d => d.name === 'Roof 2（小飞象/提摩太小吃） 7010');
+  const old = DEVICES.find(d => d.name === 'Roof 1（219A） 7001');
+  store.days['2026-11-14'] = {
+    [old.uid]: { name: old.name, path: 'x', reason: '不亮', time: '2026-11-14T06:35:00.000Z' },
+  };
+  store.days['2026-11-15'] = {
+    [roof.uid]: { name: roof.name, path: 'x', reason: '不受控', time: '2026-11-15T06:37:00.000Z' },
+  };
+  const txt = reportText('2026-11-15', store);
+  assert.ok(txt.startsWith('设备检查结果\n\n检查日期：2026年11月15日\n\n当前故障：1台\n\n已恢复：1台'));
+  assert.ok(txt.includes('【当前故障】\n\n灯光 / 花园屋顶-580 Beam / Roof 2（小飞象/提摩太小吃） / 7010\n\n故障原因：不受控'));
+  assert.ok(txt.includes('【已恢复】\n\n灯光 / 花园屋顶-580 Beam / Roof 1（219A） / 7001\n\n状态：已恢复\n\n上一检查日故障：不亮'));
+  assert.ok(txt.endsWith('——检查结束——'));
+  const empty = reportText('2026-11-15', emptyStore());
+  assert.ok(empty.includes('当前故障：0台'));
+  assert.ok(empty.includes('已恢复：0台'));
 });

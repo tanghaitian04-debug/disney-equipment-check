@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 // @ts-ignore plain ESM data with unit tests
 import { DEVICES, CATS } from './devices.mjs';
 // @ts-ignore plain ESM logic with unit tests
-import { QUICK_REASONS, deviceByUid, pathOf, dayKey, shiftDay, fmtTime, loadStore, saveStore, migrateV1, dayRecords, countsForDay, reportText, csvAll } from './equipmodel.mjs';
+import { QUICK_REASONS, deviceByUid, pathOf, inspectionDayKey, dateCN, initStore, saveStore, dayRecords, countsForDay } from './equipmodel.mjs';
 
 type Rec = { name: string; path: string; reason: string; time: string };
 type Store = { version: number; days: Record<string, Record<string, Rec>> };
@@ -24,23 +24,28 @@ function devicesAt(cat: string, group: string, sub: string) {
 }
 
 export function EquipApp() {
-  const [todayKey] = useState(dayKey);
   const [toast, setToast] = useState('');
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const notify = (msg: string) => { setToast(msg); if (toastTimer.current) clearTimeout(toastTimer.current); toastTimer.current = setTimeout(() => setToast(''), 2400); };
 
   const [store, setStore] = useState<Store>(() => {
-    const existing = loadStore(localStorage);
-    if (existing) return existing as Store;
-    const { store: mig, count } = migrateV1(localStorage);
-    saveStore(localStorage, mig);
-    if (count > 0) queueMicrotask(() => notify(`已把旧版记录 ${count} 条迁移到新版（旧数据仍保留）`));
-    return mig as Store;
+    const { store: s, migrated } = initStore(localStorage);
+    if (migrated > 0) queueMicrotask(() => notify(`已把旧版记录 ${migrated} 条迁移到新版（旧数据仍保留）`));
+    return s as Store;
   });
   const commit = (next: Store) => { setStore(next); saveStore(localStorage, next); };
 
-  const [day, setDay] = useState(todayKey);
-  const [view, setView] = useState<'catalog' | 'records'>('catalog');
+  // The device page always works on the CURRENT inspection day (rolls over at 01:00 Asia/Shanghai).
+  const [day, setDay] = useState(inspectionDayKey);
+  useEffect(() => {
+    const check = () => { const k = inspectionDayKey(); setDay(prev => (prev === k ? prev : k)); };
+    const iv = setInterval(check, 30000);
+    document.addEventListener('visibilitychange', check);
+    window.addEventListener('focus', check);
+    return () => { clearInterval(iv); document.removeEventListener('visibilitychange', check); window.removeEventListener('focus', check); };
+  }, []);
+  useEffect(() => { setUndoSnap(null); }, [day]);
+
   const [selCat, setSelCat] = useState<string | null>(null);
   const [selGroup, setSelGroup] = useState<string | null>(null);
   const [selSub, setSelSub] = useState<string | null>(null);
@@ -50,9 +55,6 @@ export function EquipApp() {
   const taRef = useRef<HTMLTextAreaElement | null>(null);
   const [undoSnap, setUndoSnap] = useState<{ day: string; map: Record<string, Rec>; label: string } | null>(null);
   const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [recCat, setRecCat] = useState('全部');
-  const [recGroup, setRecGroup] = useState('全部');
-  const [recQuery, setRecQuery] = useState('');
 
   const recs = dayRecords(store, day) as Record<string, Rec>;
   const counts = useMemo(() => countsForDay(store, day) as { per: Record<string, number>; total: number }, [store, day]);
@@ -107,23 +109,17 @@ export function EquipApp() {
     setDayRecs(next);
     showUndo(`已取消勾选 ${d.name}`, prevMap);
   };
-  const deleteRec = (d: Dev) => {
-    const prevMap = { ...recs };
-    const next = { ...recs }; delete next[d.uid];
-    setDayRecs(next);
-    showUndo(`已删除 ${d.name} 的记录`, prevMap);
-  };
-  const clearDay = () => {
+  const clearTodayFaults = () => {
     if (!Object.keys(recs).length) return;
-    if (!confirm(`清空 ${day} 的全部故障记录？`)) return;
+    if (!confirm(`清空今日（${dateCN(day)}）的全部故障记录？昨天的记录不会受影响。`)) return;
     const prevMap = { ...recs };
     setDayRecs({});
-    showUndo(`已清空 ${day} 的记录`, prevMap);
+    showUndo('已清空今日故障', prevMap);
   };
 
   const jumpTo = (d: Dev) => {
     setSelCat(d.cat); setSelGroup(d.group); setSelSub(d.sub || null);
-    setQuery(''); setView('catalog'); setHiUid(d.uid);
+    setQuery(''); setHiUid(d.uid);
     setTimeout(() => document.getElementById(`eq2-dev-${d.uid}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 90);
     setTimeout(() => setHiUid(''), 2200);
   };
@@ -134,191 +130,116 @@ export function EquipApp() {
     else if (selCat) setSelCat(null);
   };
 
-  const copyReport = async () => {
-    const text = reportText(day, store);
-    try { await navigator.clipboard.writeText(text); notify('报告已复制，去微信群粘贴发送就行'); }
-    catch {
-      const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select();
-      const ok = document.execCommand('copy'); ta.remove();
-      notify(ok ? '报告已复制，去微信群粘贴发送就行' : '复制失败，请再试一次');
-    }
-  };
-  const exportCsv = () => {
-    const blob = new Blob([csvAll(store)], { type: 'text/csv;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = '设备故障记录.csv'; a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 4000);
-    notify('已导出全部历史记录 CSV');
-  };
-
   const q = query.trim().toLowerCase();
   const searchResults = q ? allDevs.filter(d => d.name.toLowerCase().includes(q) || `${d.cat} ${d.group} ${d.sub} ${d.name}`.toLowerCase().includes(q)) : [];
 
   const leafReady = !!selCat && !!selGroup && (subsOf(selCat, selGroup).length === 0 || selSub !== null);
   const leafDevices = leafReady ? devicesAt(selCat!, selGroup!, selSub || '') : [];
 
-  const recEntries = useMemo(() => {
-    return Object.keys(recs).map(uid => ({ d: deviceByUid(uid) as Dev, r: recs[uid] })).filter(x => x.d)
-      .sort((a, b) => Date.parse(b.r.time) - Date.parse(a.r.time));
-  }, [recs]);
-  const recGroupsPresent = useMemo(() => {
-    const seen: string[] = [];
-    for (const { d } of recEntries) if ((recCat === '全部' || d.cat === recCat) && !seen.includes(d.group)) seen.push(d.group);
-    return seen;
-  }, [recEntries, recCat]);
-  const recFiltered = recEntries.filter(({ d, r }) =>
-    (recCat === '全部' || d.cat === recCat) &&
-    (recGroup === '全部' || d.group === recGroup) &&
-    (!recQuery.trim() || `${d.name} ${d.cat} ${d.group} ${d.sub} ${r.reason}`.toLowerCase().includes(recQuery.trim().toLowerCase())));
-
   const dialogDev = dialog ? (deviceByUid(dialog.uid) as Dev) : null;
 
   return (
     <div className="eq2-root">
-      <div className="eq2-datebar">
-        <button className="eq2-arrow" onClick={() => { setDay(shiftDay(day, -1)); setUndoSnap(null); }}>‹</button>
-        <span className="eq2-day">{day}{day === todayKey ? ' · 今天' : ''}</span>
-        <button className="eq2-arrow" onClick={() => { setDay(shiftDay(day, 1)); setUndoSnap(null); }}>›</button>
-        {day !== todayKey && <button className="eq2-today" onClick={() => setDay(todayKey)}>回到今天</button>}
-        <span className="eq2-daycount">{`故障 ${counts.total} 台`}</span>
+      <div className="eq2-dayline">
+        <span className="eq2-dayname">{`当前检查日：${dateCN(day)}`}</span>
+        <span className="eq2-daycount">{`今日故障 ${counts.total} 台`}</span>
       </div>
 
-      <div className="eq2-seg">
-        <button className={view === 'catalog' ? 'on' : ''} onClick={() => setView('catalog')}>设备目录</button>
-        <button className={view === 'records' ? 'on' : ''} onClick={() => setView('records')}>{`故障记录${counts.total ? ` (${counts.total})` : ''}`}</button>
+      <div className="eq2-search">
+        <input value={query} onChange={e => setQuery(e.target.value)} placeholder="搜设备编号或名称，如 7608 / Roof / 荷花灯" />
+        {query && <button className="eq2-sclear" onClick={() => setQuery('')}>✕</button>}
       </div>
 
-      {view === 'catalog' && (
+      {q ? (
+        <div className="eq2-list">
+          <div className="eq2-hint">{`找到 ${searchResults.length} 台设备（点一条直接定位）`}</div>
+          {searchResults.slice(0, 80).map(d => (
+            <button key={d.uid} className="eq2-srow" onClick={() => jumpTo(d)}>
+              <span className="eq2-sname">{d.name}{recs[d.uid] ? ' · 已记故障' : ''}</span>
+              <span className="eq2-spath">{`${d.cat} / ${d.group}${d.sub ? ` / ${d.sub}` : ''}`}</span>
+            </button>
+          ))}
+          {searchResults.length > 80 && <div className="eq2-hint">结果太多，只显示前 80 条，请输入更完整的编号</div>}
+        </div>
+      ) : (
         <>
-          <div className="eq2-search">
-            <input value={query} onChange={e => setQuery(e.target.value)} placeholder="搜设备编号或名称，如 7608 / Roof / 荷花灯" />
-            {query && <button className="eq2-sclear" onClick={() => setQuery('')}>✕</button>}
+          <div className="eq2-crumb">
+            {(selCat || selGroup || selSub) && <button className="eq2-back" onClick={back}>‹ 返回</button>}
+            <span className="eq2-crumbpath">
+              <span onClick={() => { setSelCat(null); setSelGroup(null); setSelSub(null); }}>设备目录</span>
+              {selCat && <span onClick={() => { setSelGroup(null); setSelSub(null); }}>{` / ${selCat}`}</span>}
+              {selGroup && <span onClick={() => setSelSub(null)}>{` / ${selGroup}`}</span>}
+              {selSub && <span>{` / ${selSub}`}</span>}
+            </span>
           </div>
 
-          {q ? (
-            <div className="eq2-list">
-              <div className="eq2-hint">{`找到 ${searchResults.length} 台设备（点一条直接定位）`}</div>
-              {searchResults.slice(0, 80).map(d => (
-                <button key={d.uid} className="eq2-srow" onClick={() => jumpTo(d)}>
-                  <span className="eq2-sname">{d.name}{recs[d.uid] ? ' · 已记故障' : ''}</span>
-                  <span className="eq2-spath">{`${d.cat} / ${d.group}${d.sub ? ` / ${d.sub}` : ''}`}</span>
-                </button>
-              ))}
-              {searchResults.length > 80 && <div className="eq2-hint">结果太多，只显示前 80 条，请输入更完整的编号</div>}
-            </div>
-          ) : (
+          {!selCat && (
             <>
-              <div className="eq2-crumb">
-                {(selCat || selGroup || selSub) && <button className="eq2-back" onClick={back}>‹ 返回</button>}
-                <span className="eq2-crumbpath">
-                  <span onClick={() => { setSelCat(null); setSelGroup(null); setSelSub(null); }}>设备目录</span>
-                  {selCat && <span onClick={() => { setSelGroup(null); setSelSub(null); }}>{` / ${selCat}`}</span>}
-                  {selGroup && <span onClick={() => setSelSub(null)}>{` / ${selGroup}`}</span>}
-                  {selSub && <span>{` / ${selSub}`}</span>}
-                </span>
+              <div className="eq2-list">
+                {CATS.map((cat: string) => (
+                  <button key={cat} className="eq2-lrow" onClick={() => { setSelCat(cat); setSelGroup(null); setSelSub(null); }}>
+                    <span className="eq2-lname">{cat}</span>
+                    {counts.per[cat] > 0 && <span className="eq2-badge">{`故障 ${counts.per[cat]}`}</span>}
+                    <span className="eq2-lcount">{`${allDevs.filter(d => d.cat === cat).length} 台`}</span>
+                    <span className="eq2-chev">›</span>
+                  </button>
+                ))}
               </div>
-
-              {!selCat && (
-                <div className="eq2-list">
-                  {CATS.map((cat: string) => (
-                    <button key={cat} className="eq2-lrow" onClick={() => { setSelCat(cat); setSelGroup(null); setSelSub(null); }}>
-                      <span className="eq2-lname">{cat}</span>
-                      {counts.per[cat] > 0 && <span className="eq2-badge">{`故障 ${counts.per[cat]}`}</span>}
-                      <span className="eq2-lcount">{`${allDevs.filter(d => d.cat === cat).length} 台`}</span>
-                      <span className="eq2-chev">›</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              {selCat && !selGroup && (
-                <div className="eq2-list">
-                  {groupsOf(selCat).map(g => {
-                    const f = groupFaults(selCat, g);
-                    return (
-                      <button key={g} className="eq2-lrow" onClick={() => { setSelGroup(g); setSelSub(null); }}>
-                        <span className="eq2-lname">{g}</span>
-                        {f > 0 && <span className="eq2-badge">{`故障 ${f}`}</span>}
-                        <span className="eq2-lcount">{`${allDevs.filter(d => d.cat === selCat && d.group === g).length} 台`}</span>
-                        <span className="eq2-chev">›</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-
-              {selCat && selGroup && !leafReady && (
-                <div className="eq2-list">
-                  {subsOf(selCat, selGroup).map(sb => {
-                    const f = groupFaults(selCat, selGroup, sb);
-                    return (
-                      <button key={sb} className="eq2-lrow" onClick={() => setSelSub(sb)}>
-                        <span className="eq2-lname">{sb}</span>
-                        {f > 0 && <span className="eq2-badge">{`故障 ${f}`}</span>}
-                        <span className="eq2-lcount">{`${devicesAt(selCat, selGroup, sb).length} 台`}</span>
-                        <span className="eq2-chev">›</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-
-              {leafReady && (
-                <div className="eq2-list">
-                  <div className="eq2-hint">{`共 ${leafDevices.length} 台 · 点右侧方框记录故障，再点一次取消`}</div>
-                  {leafDevices.map(d => {
-                    const rec = recs[d.uid];
-                    return (
-                      <div key={d.uid} id={`eq2-dev-${d.uid}`} className={'eq2-row' + (rec ? ' bad' : '') + (hiUid === d.uid ? ' hi' : '')}>
-                        <div className="eq2-rowmain">
-                          <div className="eq2-dname">{d.name}</div>
-                          {rec && <div className="eq2-reason">{`故障原因：${rec.reason}`}</div>}
-                        </div>
-                        {rec && <button className="eq2-edit" onClick={() => setDialog({ uid: d.uid, mode: 'edit', text: rec.reason })}>编辑原因</button>}
-                        <button className={'eq2-cb' + (rec ? ' on' : '')} aria-label={rec ? '取消勾选' : '勾选故障'} onClick={() => rec ? uncheck(d) : setDialog({ uid: d.uid, mode: 'new', text: '' })}>{rec ? '✓' : ''}</button>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+              <p className="eq2-note">每天凌晨 1:00 自动开始新一轮检查：今日状态全部恢复绿点，昨天的记录在「故障全览」里查看，不会丢失。</p>
+              {counts.total > 0 && <button className="eq2-clear" onClick={clearTodayFaults}>清空今日故障</button>}
             </>
           )}
-        </>
-      )}
 
-      {view === 'records' && (
-        <>
-          <button className="eq2-copy" onClick={copyReport}>{`复制本次故障报告（${counts.total} 台）`}</button>
-          <div className="eq2-recfilters">
-            <div className="eq2-catchips">
-              {['全部', ...CATS].map((c: string) => (
-                <button key={c} className={recCat === c ? 'on' : ''} onClick={() => { setRecCat(c); setRecGroup('全部'); }}>{c}</button>
-              ))}
+          {selCat && !selGroup && (
+            <div className="eq2-list">
+              {groupsOf(selCat).map(g => {
+                const f = groupFaults(selCat, g);
+                return (
+                  <button key={g} className="eq2-lrow" onClick={() => { setSelGroup(g); setSelSub(null); }}>
+                    <span className="eq2-lname">{g}</span>
+                    {f > 0 && <span className="eq2-badge">{`故障 ${f}`}</span>}
+                    <span className="eq2-lcount">{`${allDevs.filter(d => d.cat === selCat && d.group === g).length} 台`}</span>
+                    <span className="eq2-chev">›</span>
+                  </button>
+                );
+              })}
             </div>
-            <div className="eq2-rfrow">
-              <select className="eq2-gsel" value={recGroup} onChange={e => setRecGroup(e.target.value)}>
-                <option value="全部">全部位置（分组）</option>
-                {recGroupsPresent.map(g => <option key={g} value={g}>{g}</option>)}
-              </select>
-              <input className="eq2-rsearch" value={recQuery} onChange={e => setRecQuery(e.target.value)} placeholder="搜设备或原因" />
+          )}
+
+          {selCat && selGroup && !leafReady && (
+            <div className="eq2-list">
+              {subsOf(selCat, selGroup).map(sb => {
+                const f = groupFaults(selCat, selGroup, sb);
+                return (
+                  <button key={sb} className="eq2-lrow" onClick={() => setSelSub(sb)}>
+                    <span className="eq2-lname">{sb}</span>
+                    {f > 0 && <span className="eq2-badge">{`故障 ${f}`}</span>}
+                    <span className="eq2-lcount">{`${devicesAt(selCat, selGroup, sb).length} 台`}</span>
+                    <span className="eq2-chev">›</span>
+                  </button>
+                );
+              })}
             </div>
-          </div>
-          {recFiltered.length === 0 && <div className="eq2-empty">{counts.total ? '没有符合筛选条件的记录' : '暂无故障记录。去设备目录里勾选故障设备，这里会自动汇总。'}</div>}
-          {recFiltered.map(({ d, r }) => (
-            <div key={d.uid} className="eq2-rec">
-              <div className="eq2-rec-top"><span className="eq2-rec-name">{r.name}</span><span className="eq2-rec-time">{fmtTime(r.time)}</span></div>
-              <div className="eq2-rec-path">{r.path}</div>
-              <div className="eq2-rec-reason">{`故障原因：${r.reason}`}</div>
-              <div className="eq2-rec-btns">
-                <button onClick={() => setDialog({ uid: d.uid, mode: 'edit', text: r.reason })}>编辑原因</button>
-                <button className="del" onClick={() => deleteRec(d)}>删除</button>
-              </div>
+          )}
+
+          {leafReady && (
+            <div className="eq2-list">
+              <div className="eq2-hint">{`共 ${leafDevices.length} 台 · 绿点正常、红点故障 · 点右侧方框记录故障，再点一次取消`}</div>
+              {leafDevices.map(d => {
+                const rec = recs[d.uid];
+                return (
+                  <div key={d.uid} id={`eq2-dev-${d.uid}`} className={'eq2-row' + (rec ? ' bad' : '') + (hiUid === d.uid ? ' hi' : '')}>
+                    <div className="eq2-rowmain">
+                      <div className="eq2-dname">{d.name}<span className={'eq2-dot' + (rec ? ' bad' : '')} /></div>
+                      {rec && <div className="eq2-reason">{`故障原因：${rec.reason}`}</div>}
+                    </div>
+                    {rec && <button className="eq2-edit" onClick={() => setDialog({ uid: d.uid, mode: 'edit', text: rec.reason })}>编辑原因</button>}
+                    <button className={'eq2-cb' + (rec ? ' on' : '')} aria-label={rec ? '取消勾选' : '勾选故障'} onClick={() => rec ? uncheck(d) : setDialog({ uid: d.uid, mode: 'new', text: '' })}>{rec ? '✓' : ''}</button>
+                  </div>
+                );
+              })}
             </div>
-          ))}
-          <div className="eq2-recfoot">
-            <button onClick={exportCsv}>导出全部历史 CSV</button>
-            <button className="danger" onClick={clearDay}>清空当天记录</button>
-          </div>
+          )}
         </>
       )}
 

@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 // @ts-ignore schedule logic is plain ESM with unit tests
 import { PEOPLE, POSITIONS, SLOT_OF, SLOTS, dateLabel, buildText, doorLabel, slotAssignments } from './schedule.mjs';
 import { EquipApp } from './equip2';
+import { OverviewApp } from './overview';
 import './style.css';
 
 const STORE = 'stage-schedule-v1';
@@ -13,6 +14,7 @@ const I = {
   folder: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></svg>,
   wrench: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14.7 6.3a4.2 4.2 0 0 1 5.9-4L17.8 5l1.6 1.6 2.8-2.8a4.2 4.2 0 0 1-5.6 5.3L9 16.7a2.1 2.1 0 1 1-3-3l2.6-2.6a4.2 4.2 0 0 1 6.1-4.8z" /></svg>,
   me: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="3.6" /><path d="M5 20c1.2-3.2 3.8-4.8 7-4.8s5.8 1.6 7 4.8" /></svg>,
+  alert: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="8.6" /><path d="M12 7.6V13" /><circle cx="12" cy="16.4" r="0.4" fill="currentColor" /></svg>,
   cal: <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5" /><path d="M3.5 10h17M8 3v4M16 3v4" /></svg>,
 };
 
@@ -134,7 +136,7 @@ function App() {
     { id: 'home', label: '首页', icon: I.home },
     { id: 'files', label: '文件', icon: I.folder },
     { id: 'device', label: '设备', icon: I.wrench },
-    { id: 'me', label: '我的', icon: I.me },
+    { id: 'overview', label: '故障全览', icon: I.alert },
   ];
 
   return (
@@ -227,20 +229,7 @@ function App() {
           </>
         )}
 
-        {tab === 'me' && (
-          <>
-            <div className="sect-title">我的</div>
-            <div className="mecard">
-              <div className="inforow"><span className="k">今日日期</span><span className="v">{today.label}</span></div>
-              <div className="inforow"><span className="k">版本</span><span className="v">舞台工具箱 V1.4.0</span></div>
-              <div className="inforow"><span className="k">排班名单</span><span className="v">17 人 · 按班表顺序</span></div>
-              <div className="inforow"><span className="k">数据存储</span><span className="v">仅保存在本机浏览器</span></div>
-            </div>
-            <p className="me-note">排班：当天选好的岗位和大门板会自动保存，刷新不丢，第二天自动清空。设备记录：存在本机，按日期保存，可导出 CSV。两个工具的数据都不上传服务器。</p>
-            <button className="me-btn" style={{ borderColor: 'rgba(232,195,122,.5)', color: 'var(--gold)', marginBottom: 10 }} onClick={async () => { try { const r = await navigator.serviceWorker?.getRegistration(); await r?.update(); } catch {} location.reload(); }}>重新加载最新版</button>
-            <button className="me-btn" onClick={clearToday}>清空今日排班</button>
-          </>
-        )}
+        {tab === 'overview' && <OverviewApp />}
       </div>
 
       {tab === 'home' && (
