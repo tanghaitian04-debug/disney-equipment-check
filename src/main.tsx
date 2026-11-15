@@ -170,7 +170,7 @@ function App() {
               <span className="wd">{today.label.split(' ')[1]}</span>
             </div>
             <div className="showbox">
-              <span className="showbox-tag">演出场地</span>
+              <span className="showbox-tag">演出场次</span>
               {SHOWS.map((sh: any) => {
                 const a = sh.date.split('-').map(Number);
                 return (
