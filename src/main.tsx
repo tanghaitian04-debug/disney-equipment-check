@@ -6,7 +6,7 @@ import { EquipApp } from './equip2';
 import { OverviewApp } from './overview';
 import { MineApp } from './mine';
 // @ts-ignore plain ESM logic with unit tests
-import { loadSession } from './cloud.mjs';
+import { loadSession, apiGetShows, apiGetRosterMeta, apiGetRosterPdf } from './cloud.mjs';
 import './style.css';
 // @ts-ignore hand-maintained weekly show announcements
 import { SHOWS } from './showdata.mjs';
@@ -14,19 +14,12 @@ import { SHOWS } from './showdata.mjs';
 const STORE = 'stage-schedule-v1';
 type Doors = Record<string, { z?: boolean; s?: boolean }>;
 type Session = { token: string; username: string; name: string; mustChange: boolean };
-const MAPS = [
-  { src: '/maps/map-laser.jpg', title: '激光点位总图' },
-  { src: '/maps/map-castle-dmx.jpg', title: '城堡正面点位' },
-  { src: '/maps/map-castle-elev.jpg', title: '城堡立面点位' },
-  { src: '/maps/map-wheel.jpg', title: '城堡 Wheel 位置' },
-  { src: '/maps/map-garden-af.jpg', title: '花园灯位图' },
-  { src: '/maps/map-garden-plan.jpg', title: '花园平面点位' },
-];
 
 const I = {
   home: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2.6v2.2" /><path d="M12 2.6l2.8.9-2.8.9" fill="currentColor" stroke="none" /><path d="M9.6 7.6L12 5.2l2.4 2.4" /><path d="M10.1 7.4v5.1h3.8V7.4" /><path d="M4.6 21v-9.4L6.1 9.9l1.5 1.7V21" /><path d="M16.4 21v-9.4l1.5-1.7 1.5 1.7V21" /><path d="M7.6 15h2.5M13.9 15h2.5" /><path d="M10.9 21v-2.5a1.1 1.1 0 0 1 2.2 0V21" /><path d="M4.6 21h14.8" /></svg>,
   castle: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2.6v2.2" /><path d="M12 2.6l2.8.9-2.8.9" fill="currentColor" stroke="none" /><path d="M9.6 7.6L12 5.2l2.4 2.4" /><path d="M10.1 7.4v5.1h3.8V7.4" /><path d="M4.6 21v-9.4L6.1 9.9l1.5 1.7V21" /><path d="M16.4 21v-9.4l1.5-1.7 1.5 1.7V21" /><path d="M7.6 15h2.5M13.9 15h2.5" /><path d="M10.9 21v-2.5a1.1 1.1 0 0 1 2.2 0V21" /><path d="M4.6 21h14.8" /></svg>,
   folder: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></svg>,
+  wind: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9.59 4.59A2 2 0 1 1 11 8H2" /><path d="M17.73 7.73A2.5 2.5 0 1 1 19.5 12H2" /><path d="M12.59 19.41A2 2 0 1 0 14 16H2" /></svg>,
   wrench: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14.7 6.3a4.2 4.2 0 0 1 5.9-4L17.8 5l1.6 1.6 2.8-2.8a4.2 4.2 0 0 1-5.6 5.3L9 16.7a2.1 2.1 0 1 1-3-3l2.6-2.6a4.2 4.2 0 0 1 6.1-4.8z" /></svg>,
   me: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="3.6" /><path d="M5 20c1.2-3.2 3.8-4.8 7-4.8s5.8 1.6 7 4.8" /></svg>,
   alert: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="8.6" /><path d="M12 7.6V13" /><circle cx="12" cy="16.4" r="0.4" fill="currentColor" /></svg>,
@@ -50,8 +43,19 @@ function App() {
   });
   const advTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [session, setSession] = useState<Session | null>(() => loadSession(localStorage) as Session | null);
-  const [filesView, setFilesView] = useState<'root' | 'maps'>('root');
-  const [mapOpen, setMapOpen] = useState<number | null>(null);
+  const [shows, setShowsState] = useState<any[]>(SHOWS);
+  const [rosterMeta, setRosterMeta] = useState<any>(null);
+  useEffect(() => {
+    apiGetShows().then((list: any) => { if (Array.isArray(list) && list.length) setShowsState(list); }).catch(() => {});
+    apiGetRosterMeta().then((m: any) => setRosterMeta(m)).catch(() => {});
+  }, []);
+  const openCloudPdf = async () => {
+    const b64 = await apiGetRosterPdf();
+    if (!b64) { window.alert('PDF 加载失败，请稍后再试'); return; }
+    const bin = atob(b64); const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    window.open(URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' })), '_blank');
+  };
   const [generated, setGenerated] = useState('');
   const [showPreview, setShowPreview] = useState(false);
   const [toast, setToast] = useState('');
@@ -149,10 +153,18 @@ function App() {
     }
   };
   const clearToday = () => { if ((Object.keys(assign).length || doorCount) && confirm('清空今天已选的全部岗位和大门板？')) { setAssign({}); setDoors({}); setShowPreview(false); notify('已清空'); } };
+  const copyText = async (text: string, okMsg: string) => {
+    try { await navigator.clipboard.writeText(text); notify(okMsg); }
+    catch {
+      const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select();
+      const ok = document.execCommand('copy'); ta.remove();
+      notify(ok ? okMsg : '复制失败，请长按手动复制');
+    }
+  };
 
   const tabs = [
     { id: 'home', label: '首页', icon: I.home },
-    { id: 'files', label: '文件', icon: I.folder },
+    { id: 'wind', label: '风速', icon: I.wind },
     { id: 'device', label: '设备', icon: I.wrench },
     { id: 'overview', label: '故障全览', icon: I.alert },
     { id: 'mine', label: '我的', icon: I.me },
@@ -171,7 +183,7 @@ function App() {
             </div>
             <div className="showbox">
               <span className="showbox-tag">演出场次</span>
-              {SHOWS.map((sh: any) => {
+              {shows.map((sh: any) => {
                 const a = sh.date.split('-').map(Number);
                 return (
                   <div key={sh.date} className={'showline' + (sh.date === today.key ? ' today' : '')}>
@@ -182,11 +194,18 @@ function App() {
                 );
               })}
             </div>
-            <a className="rostercard" href="/files/roster-1115-1121.pdf" target="_blank" rel="noreferrer">
-              <span className="rc-head"><span className="rc-title">本周班表</span><span className="rc-range">11月15日 – 11月21日</span><span className="rc-open">打开完整 PDF ›</span></span>
-              <span className="rc-imgwrap"><img src="/files/roster-1115-1121.jpg" alt="11月15日至11月21日班表预览" loading="lazy" /></span>
-              <span className="rc-hint">点开可看完整班表（PDF）</span>
-            </a>
+            {rosterMeta && rosterMeta.hasPdf ? (
+              <button type="button" className="rostercard" onClick={openCloudPdf}>
+                <span className="rc-head"><span className="rc-title">本周班表</span><span className="rc-range">{rosterMeta.label || ''}</span><span className="rc-open">打开完整 PDF ›</span></span>
+                <span className="rc-hint">{`经理 ${rosterMeta.updatedBy || ''} 上传 · 点开可看完整班表（PDF）`}</span>
+              </button>
+            ) : (
+              <a className="rostercard" href="/files/roster-1115-1121.pdf" target="_blank" rel="noreferrer">
+                <span className="rc-head"><span className="rc-title">本周班表</span><span className="rc-range">11月15日 – 11月21日</span><span className="rc-open">打开完整 PDF ›</span></span>
+                <span className="rc-imgwrap"><img src="/files/roster-1115-1121.jpg" alt="11月15日至11月21日班表预览" loading="lazy" /></span>
+                <span className="rc-hint">点开可看完整班表（PDF）</span>
+              </a>
+            )}
             <div className="statusrow">
               <span id="progress">{`岗位已填 ${filled} / ${SLOTS.length} · 已安排 ${Object.keys(assign).filter(k => assign[k]).length} 人${doorCount ? ` · 大门板 ${doorCount} 人` : ''}`}</span>
               <button id="btn-clear" onClick={clearToday}>清空重选</button>
@@ -238,30 +257,30 @@ function App() {
           </>
         )}
 
-        {tab === 'files' && filesView === 'root' && (
+        {tab === 'wind' && (
           <>
-            <div className="sect-title">文件</div>
-            <button className="mapentry" onClick={() => setFilesView('maps')}>
-              <span className="mapentry-txt"><h3>设备图</h3></span>
-              <span className="go">›</span>
-            </button>
-          </>
-        )}
-
-        {tab === 'files' && filesView === 'maps' && (
-          <>
-            <div className="backbar">
-              <button onClick={() => setFilesView('root')}>‹ 返回</button>
-              <span>设备图 · 点任意一张看大图</span>
+            <div className="sect-title">风速</div>
+            <a className="wind-open" href="http://123.60.26.100:4050/disneywind/" target="_blank" rel="noreferrer">
+              <span className="wind-open-ic">{I.wind}</span>
+              <span className="wind-open-main">
+                <span className="wind-open-title">打开风速平台</span>
+                <span className="wind-open-url">123.60.26.100:4050/disneywind</span>
+              </span>
+              <span className="wind-open-arrow">›</span>
+            </a>
+            <div className="wind-cred">
+              <button type="button" className="wind-cred-row" onClick={() => copyText('abc', '账户已复制')}>
+                <span className="wind-cred-cap">账户</span>
+                <span className="wind-cred-val">abc</span>
+                <span className="wind-cred-copy">点按复制</span>
+              </button>
+              <button type="button" className="wind-cred-row" onClick={() => copyText('123', '密码已复制')}>
+                <span className="wind-cred-cap">密码</span>
+                <span className="wind-cred-val">123</span>
+                <span className="wind-cred-copy">点按复制</span>
+              </button>
             </div>
-            <div className="mapgrid">
-              {MAPS.map((m, i) => (
-                <button key={m.src} className="mapcard" onClick={() => setMapOpen(i)}>
-                  <span className="mapthumb"><img src={m.src} alt={m.title} loading="lazy" /></span>
-                  <span className="maptitle">{m.title}</span>
-                </button>
-              ))}
-            </div>
+            <p className="wind-note">点上面的框跳转到风速平台，再用下面的账户、密码登录（点任意一行就能复制）。</p>
           </>
         )}
 
@@ -310,13 +329,6 @@ function App() {
         ))}
       </nav>
 
-      {mapOpen !== null && (
-        <div className="mapviewer" onClick={() => setMapOpen(null)}>
-          <div className="mv-bar"><span>{MAPS[mapOpen].title}</span><button onClick={() => setMapOpen(null)}>关闭 ✕</button></div>
-          <div className="mv-scroll"><img src={MAPS[mapOpen].src} alt={MAPS[mapOpen].title} /></div>
-          <div className="mv-hint">双指捏合可以放大看细节</div>
-        </div>
-      )}
       {toast && <div id="toast">{toast}</div>}
       {updateReady && <button className="update-banner" onClick={() => location.reload()}>新版本已准备好 · 点击更新（数据不丢）</button>}
     </>

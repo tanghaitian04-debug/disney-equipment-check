@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 // @ts-ignore plain ESM logic with unit tests
-import { ACCOUNTS, apiLogin, apiChangePassword, apiLogout, apiSetAvatar, apiSetJoinDate, authedApi, loadSession } from './cloud.mjs';
+import { ACCOUNTS, MANAGER_ACCOUNTS, apiLogin, apiChangePassword, apiLogout, apiSetAvatar, apiSetJoinDate, apiGetShows, apiSetShows, apiGetRosterMeta, apiSetRosterPdf, authedApi, loadSession } from './cloud.mjs';
+// @ts-ignore bundled fallback for the shows editor
+import { SHOWS } from './showdata.mjs';
 // @ts-ignore generated from the weekly roster PDF (see ~/workspace/roster-tools/parse_roster.py)
 import { ROSTER } from './rosterdata.mjs';
 
-type Session = { token: string; username: string; name: string; mustChange: boolean; avatar?: string | null; joinDate?: string | null };
+type Session = { token: string; username: string; name: string; mustChange: boolean; role?: string; avatar?: string | null; joinDate?: string | null };
 
 const AVATAR_PREFIX = 'toolbox-avatar-v1:';
 export const avatarKey = (username: string) => AVATAR_PREFIX + username;
@@ -41,6 +43,10 @@ const ERR: Record<string, string> = {
   NOT_LOGGED_IN: '登录已过期，请重新登录',
   BAD_RESPONSE: '网络不太顺，稍后再试',
   NETWORK: '网络不太顺，稍后再试',
+  BAD_JOINDATE: '日期格式不对',
+  FORBIDDEN: '只有经理账号可以编辑',
+  BAD_SHOWS: '场次信息格式不对，请检查日期',
+  BAD_PDF: 'PDF 不对或文件太大',
 };
 const errText = (e: any) => ERR[(e && e.code) || ''] || '网络不太顺，稍后再试';
 
@@ -61,6 +67,43 @@ export function MineApp({ session, onSession, notify }: { session: Session | nul
   const [joinEdit, setJoinEdit] = useState(false);
   const [joinInput, setJoinInput] = useState('');
   const [todayKey, setTodayKey] = useState<string>(beijingTodayKey);
+  const isManager = !!(session && session.role === 'manager');
+  const [mgrRows, setMgrRows] = useState<any[]>([]);
+  const [pdfMeta, setPdfMeta] = useState<any>(null);
+  const [pdfLabel, setPdfLabel] = useState('');
+  const [pdfB64, setPdfB64] = useState('');
+  const [mgrBusy, setMgrBusy] = useState(false);
+  useEffect(() => {
+    if (!isManager) return;
+    apiGetShows().then((list: any) => setMgrRows(Array.isArray(list) && list.length ? list : SHOWS)).catch(() => setMgrRows(SHOWS));
+    apiGetRosterMeta().then((m: any) => setPdfMeta(m)).catch(() => {});
+  }, [isManager]);
+  const saveShows = async () => {
+    const entries = mgrRows.filter((r: any) => r.date).map((r: any) => ({ date: r.date, text: String(r.text || '').trim() }));
+    setMgrBusy(true);
+    try { await apiSetShows(localStorage, entries); notify('演出场次已保存，首页已更新'); }
+    catch (e: any) { notify(errText(e)); }
+    setMgrBusy(false);
+  };
+  const pickPdf = (e: any) => {
+    const f = e.target.files && e.target.files[0];
+    if (!f) return;
+    if (f.size > 2200000) { notify('PDF 太大（上限约 2MB）'); return; }
+    const rd = new FileReader();
+    rd.onload = () => { const url = String(rd.result || ''); setPdfB64(url.slice(url.indexOf(',') + 1)); };
+    rd.readAsDataURL(f);
+  };
+  const uploadPdf = async () => {
+    if (!pdfB64) return;
+    setMgrBusy(true);
+    try {
+      await apiSetRosterPdf(localStorage, pdfB64, pdfLabel.trim());
+      setPdfB64('');
+      setPdfMeta(await apiGetRosterMeta());
+      notify('首页班表 PDF 已更新');
+    } catch (e: any) { notify(errText(e)); }
+    setMgrBusy(false);
+  };
 
   useEffect(() => { if (session) setJoinDateState(session.joinDate || loadJoin(session.username)); }, [session && session.username]);
 
@@ -208,9 +251,11 @@ export function MineApp({ session, onSession, notify }: { session: Session | nul
           <select className="mine-input" value={username} onChange={e => setUsername(e.target.value)}>
             <option value="">请选择你的名字</option>
             {ACCOUNTS.map((a: any) => <option key={a.username} value={a.username}>{a.name}</option>)}
+            <option disabled>—— 经理 ——</option>
+            {MANAGER_ACCOUNTS.map((a: any) => <option key={a.username} value={a.username}>{a.name}</option>)}
           </select>
           <label className="mine-cap">密码</label>
-          <input className="mine-input" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="初始密码 12345678" autoComplete="current-password" onKeyDown={e => { if (e.key === 'Enter') doLogin(); }} />
+          <input className="mine-input" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="请输入密码" autoComplete="current-password" onKeyDown={e => { if (e.key === 'Enter') doLogin(); }} />
           {loginErr && <div className="mine-err">{loginErr}</div>}
           <button className="mine-primary" disabled={busy} onClick={doLogin}>{busy ? '登录中…' : '登录'}</button>
           <p className="mine-note">第一次登录用初始密码 12345678，登录后建议马上改成你自己的密码。排班功能不用登录也能用。</p>
@@ -275,6 +320,30 @@ export function MineApp({ session, onSession, notify }: { session: Session | nul
           </>
         );
       })()}
+
+      {isManager && (
+        <>
+          <div className="mine-sect">管理编辑</div>
+          <div className="mecard mgr-card">
+            <div className="mgr-sub">编辑演出场次（首页）</div>
+            {mgrRows.map((r: any, i: number) => (
+              <div key={i} className="mgr-row">
+                <input type="date" className="mine-input mgr-date" value={r.date} onChange={e => setMgrRows(mgrRows.map((x: any, j: number) => j === i ? { ...x, date: e.target.value } : x))} />
+                <input className="mine-input" value={r.text} placeholder="（两场）20:00 21:15" onChange={e => setMgrRows(mgrRows.map((x: any, j: number) => j === i ? { ...x, text: e.target.value } : x))} />
+                <button type="button" className="mgr-del" onClick={() => setMgrRows(mgrRows.filter((_: any, j: number) => j !== i))}>✕</button>
+              </div>
+            ))}
+            <button type="button" className="mine-reload" onClick={() => setMgrRows([...mgrRows, { date: '', text: '' }])}>＋ 添加一天</button>
+            <button type="button" className="mine-primary" disabled={mgrBusy} onClick={saveShows}>{mgrBusy ? '保存中…' : '保存场次'}</button>
+            <div className="mgr-sub">更换首页班表 PDF</div>
+            <div className="mgr-note">{pdfMeta && pdfMeta.hasPdf ? `当前 PDF：${pdfMeta.label || '班表'}（${pdfMeta.updatedBy || ''} 上传）` : '当前使用网站内置 PDF，尚未上传过。'}</div>
+            <input className="mine-input" value={pdfLabel} placeholder="标注，如：11月22日 – 11月28日" onChange={e => setPdfLabel(e.target.value)} />
+            <input type="file" accept="application/pdf" className="mgr-file" onChange={pickPdf} />
+            <button type="button" className="mine-primary" disabled={mgrBusy || !pdfB64} onClick={uploadPdf}>{mgrBusy ? '上传中…' : '上传并替换首页 PDF'}</button>
+            <div className="mgr-note">上传后首页班表立即生效；「我的岗位」仍按周更新，换完请把 PDF 同步发管理员一份。</div>
+          </div>
+        </>
+      )}
 
       <div className="mine-sect">修改密码</div>
       {!(session.mustChange || pwOpen) ? (

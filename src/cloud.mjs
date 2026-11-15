@@ -17,6 +17,9 @@ export const ACCOUNTS = [
   ['zhaoguohua', '赵国华'], ['luoguangrong', '罗光荣'], ['zhangyu', '张禹'],
   ['chencai', '陈财'], ['zhangyunxiang', '张云翔'],
 ].map(([username, name]) => ({ username, name }));
+export const MANAGER_ACCOUNTS = [
+  ['amao', 'Amao'], ['claire', 'CLAIRE'], ['sharon', 'Sharon'],
+].map(([username, name]) => ({ username, name, role: 'manager' }));
 export const SESSION_KEY = 'toolbox-session-v1';
 export const QUEUE_KEY = 'equipment-cloud-queue-v1';
 export const META_KEY = 'equipment-cloud-meta-v1';
@@ -202,6 +205,55 @@ export async function apiChangePassword(storage, oldPassword, newPassword) {
 }
 export function apiLogout(storage) { clearSession(storage); }
 // The hire date lives on the account too, so the 加入迪士尼 day counter matches on every phone.
+// Homepage content (shows + roster PDF), editable by manager accounts only.
+export async function apiGetShows() {
+  try { const r = await callApi({ action: 'getShows' }); return r && Array.isArray(r.shows) ? r.shows : null; }
+  catch { return null; }
+}
+export async function apiSetShows(storage, entries) {
+  return authedApi(storage, { action: 'setShows', entries });
+}
+export async function apiGetRosterMeta() {
+  try { const r = await callApi({ action: 'getRosterMeta' }); return r && r.ok ? r : null; }
+  catch { return null; }
+}
+export async function apiGetRosterPdf() {
+  // Chunked download: fetch the parts and join them (the gateway caps payloads).
+  try {
+    const meta = await apiGetRosterMeta();
+    if (meta && meta.hasPdf && meta.total) {
+      let out = '';
+      for (let i = 0; i < meta.total; i++) {
+        let chunk = null;
+        for (let att = 0; att < 4 && chunk === null; att++) {
+          try { const r = await callApi({ action: 'getRosterPdfPart', index: i }); if (r && typeof r.chunk === 'string') chunk = r.chunk; } catch {}
+        }
+        if (chunk === null) return null;
+        out += chunk;
+      }
+      return out;
+    }
+    const r = await callApi({ action: 'getRosterPdf' });
+    return r && r.ok ? (r.base64 || null) : null;
+  } catch { return null; }
+}
+export async function apiSetRosterPdf(storage, base64, label) {
+  // Chunked upload in <=45000-char parts (gateway rejects bodies over ~100KB);
+  // each part is retried — the free gateway occasionally drops a request.
+  const CHUNK = 45000;
+  const total = Math.max(1, Math.ceil(base64.length / CHUNK));
+  for (let part = 0; part < total; part++) {
+    const payload = { action: 'setRosterPdf', part, total, chunk: base64.slice(part * CHUNK, (part + 1) * CHUNK) };
+    if (part === 0) payload.label = label;
+    let lastErr = null, done = false;
+    for (let att = 0; att < 3 && !done; att++) {
+      try { await authedApi(storage, payload); done = true; }
+      catch (e) { lastErr = e; }
+    }
+    if (!done) throw lastErr;
+  }
+  return { ok: true };
+}
 export async function apiSetJoinDate(storage, joinDate) {
   await authedApi(storage)({ action: 'setJoinDate', joinDate });
   const s = loadSession(storage);
