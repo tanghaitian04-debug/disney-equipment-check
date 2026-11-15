@@ -2,17 +2,20 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 // @ts-ignore plain ESM data with unit tests
 import { DEVICES } from './devices.mjs';
 // @ts-ignore plain ESM logic with unit tests
-import { deviceByUid, inspectionDayKey, dateCN, initStore, dayRecords, recoveredFor, reportText, reportSegments, csvAll, fmtClock } from './equipmodel.mjs';
+import { deviceByUid, inspectionDayKey, dateCN, initStore, dayRecords, recoveredFor, reportText, reportSegments, csvAll, fmtClock, shiftDay } from './equipmodel.mjs';
+// @ts-ignore plain ESM logic with unit tests
+import { authedApi, pullAndMerge } from './cloud.mjs';
 
-type Rec = { name: string; path: string; reason: string; time: string };
+type Rec = { name: string; path: string; reason: string; time: string; reporter?: string; updatedAt?: string };
+type Session = { token: string; username: string; name: string; mustChange: boolean };
 type Store = { version: number; days: Record<string, Record<string, Rec>> };
 type Dev = { uid: string; cat: string; group: string; sub: string; name: string };
 
 const allDevs = DEVICES as Dev[];
 const shortName = (d: Dev) => { const segs = reportSegments(d); return segs[segs.length - 1]; };
 
-type GroupBlock = { key: string; title: string; items: { d: Dev; text: string; time?: string; bad: boolean }[] };
-function groupBlocks(items: { d: Dev; text: string; time?: string; bad: boolean }[]): GroupBlock[] {
+type GroupBlock = { key: string; title: string; items: { d: Dev; text: string; time?: string; bad: boolean; reporter?: string }[] };
+function groupBlocks(items: { d: Dev; text: string; time?: string; bad: boolean; reporter?: string }[]): GroupBlock[] {
   const blocks: GroupBlock[] = [];
   const byKey = new Map<string, GroupBlock>();
   for (const it of items) {
@@ -27,12 +30,13 @@ function groupBlocks(items: { d: Dev; text: string; time?: string; bad: boolean 
   return blocks;
 }
 
-export function OverviewApp() {
+export function OverviewApp({ session }: { session: Session | null }) {
   const [toast, setToast] = useState('');
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const notify = (msg: string) => { setToast(msg); if (toastTimer.current) clearTimeout(toastTimer.current); toastTimer.current = setTimeout(() => setToast(''), 2400); };
 
-  const [store] = useState<Store>(() => initStore(localStorage).store as Store);
+  const [store, setStore] = useState<Store>(() => initStore(localStorage).store as Store);
+  const api = React.useMemo(() => (session ? authedApi(localStorage) : null), [session && session.token]);
   const [currentDay, setCurrentDay] = useState(inspectionDayKey);
   const [selDay, setSelDay] = useState(inspectionDayKey);
   const followRef = useRef(true);
@@ -49,12 +53,22 @@ export function OverviewApp() {
     return () => { clearInterval(iv); document.removeEventListener('visibilitychange', check); window.removeEventListener('focus', check); };
   }, []);
 
+  // Pull the selected day and the day before it (needed for 已恢复) from the cloud.
+  useEffect(() => {
+    if (!api) return;
+    let alive = true;
+    pullAndMerge({ storage: localStorage, api, days: [selDay, shiftDay(selDay, -1)] })
+      .then((merged: any) => { if (alive) setStore(merged as Store); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [api, selDay]);
+
   const recs = dayRecords(store, selDay) as Record<string, Rec>;
   const faults = useMemo(() => allDevs.filter(d => recs[d.uid]), [recs]);
   const recov = useMemo(() => recoveredFor(store, selDay) as { d: Dev; prevReason: string }[], [store, selDay]);
   const isToday = selDay === currentDay;
 
-  const faultBlocks = useMemo(() => groupBlocks(faults.map(d => ({ d, text: recs[d.uid].reason, time: recs[d.uid].time, bad: true }))), [faults, recs]);
+  const faultBlocks = useMemo(() => groupBlocks(faults.map(d => ({ d, text: recs[d.uid].reason, time: recs[d.uid].time, bad: true, reporter: recs[d.uid].reporter }))), [faults, recs]);
   const recovBlocks = useMemo(() => groupBlocks(recov.map(({ d, prevReason }) => ({ d, text: `已恢复（昨日：${prevReason}）`, bad: false }))), [recov]);
 
   const pickDay = (v: string) => {
@@ -88,6 +102,7 @@ export function OverviewApp() {
           <span className={'ov-dot' + (it.bad ? ' bad' : '')} />
           <span className="ov-name">{shortName(it.d)}</span>
           <span className={'ov-text' + (it.bad ? '' : ' ok')}>{it.text}</span>
+          {it.bad && it.reporter && <span className="ov-rep">{it.reporter}</span>}
           {it.bad && it.time && <span className="ov-time">{fmtClock(it.time)}</span>}
         </div>
       ))}

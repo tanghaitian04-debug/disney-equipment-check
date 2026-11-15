@@ -3,8 +3,11 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { DEVICES, CATS } from './devices.mjs';
 // @ts-ignore plain ESM logic with unit tests
 import { QUICK_REASONS, deviceByUid, pathOf, inspectionDayKey, dateCN, initStore, saveStore, dayRecords, countsForDay } from './equipmodel.mjs';
+// @ts-ignore plain ESM logic with unit tests
+import { authedApi, diffOps, pushOps, pullAndMerge, flushQueue, loadQueue } from './cloud.mjs';
 
-type Rec = { name: string; path: string; reason: string; time: string };
+type Rec = { name: string; path: string; reason: string; time: string; reporter?: string; updatedAt?: string };
+type Session = { token: string; username: string; name: string; mustChange: boolean };
 type Store = { version: number; days: Record<string, Record<string, Rec>> };
 type Dev = { uid: string; cat: string; group: string; sub: string; name: string };
 
@@ -23,7 +26,7 @@ function devicesAt(cat: string, group: string, sub: string) {
   return allDevs.filter(d => d.cat === cat && d.group === group && d.sub === sub);
 }
 
-export function EquipApp() {
+export function EquipApp({ session }: { session: Session | null }) {
   const [toast, setToast] = useState('');
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const notify = (msg: string) => { setToast(msg); if (toastTimer.current) clearTimeout(toastTimer.current); toastTimer.current = setTimeout(() => setToast(''), 2400); };
@@ -33,7 +36,43 @@ export function EquipApp() {
     if (migrated > 0) queueMicrotask(() => notify(`已把旧版记录 ${migrated} 条迁移到新版（旧数据仍保留）`));
     return s as Store;
   });
-  const commit = (next: Store) => { setStore(next); saveStore(localStorage, next); };
+  const api = React.useMemo(() => (session ? authedApi(localStorage) : null), [session && session.token]);
+  const commitCount = useRef(0);
+  const [syncMsg, setSyncMsg] = useState('');
+  const commit = (next: Store) => {
+    const ops = diffOps(store, next);
+    setStore(next); saveStore(localStorage, next);
+    if (api && ops.length) {
+      commitCount.current++;
+      pushOps({ storage: localStorage, api, ops })
+        .then((r: any) => { if (r && !r.ok) setSyncMsg('有记录待同步（网络恢复后自动上传）'); })
+        .catch(() => setSyncMsg('有记录待同步（网络恢复后自动上传）'));
+    }
+  };
+
+  // Cloud sync: pull the current inspection day on mount / when the page becomes
+  // visible / every minute, then flush any queued offline writes.
+  useEffect(() => {
+    if (!api) return;
+    let alive = true;
+    const sync = async () => {
+      const before = commitCount.current;
+      try {
+        const merged = await pullAndMerge({ storage: localStorage, api, days: [inspectionDayKey()] });
+        if (!alive) return;
+        if (commitCount.current === before) setStore(merged as Store);
+        const f = await flushQueue({ storage: localStorage, api });
+        if (!alive) return;
+        const left = loadQueue(localStorage).length;
+        setSyncMsg(f.ok && !left ? '云端已同步' : `待同步 ${left} 条`);
+      } catch { if (alive) setSyncMsg('暂时连不上云端，记录先存本机'); }
+    };
+    sync();
+    const iv = setInterval(sync, 60000);
+    const onVis = () => { if (document.visibilityState === 'visible') sync(); };
+    document.addEventListener('visibilitychange', onVis);
+    return () => { alive = false; clearInterval(iv); document.removeEventListener('visibilitychange', onVis); };
+  }, [api]);
 
   // The device page always works on the CURRENT inspection day (rolls over at 01:00 Asia/Shanghai).
   const [day, setDay] = useState(inspectionDayKey);
@@ -144,6 +183,7 @@ export function EquipApp() {
         <span className="eq2-dayname">{`当前检查日：${dateCN(day)}`}</span>
         <span className="eq2-daycount">{`今日故障 ${counts.total} 台`}</span>
       </div>
+      {session && <div className="eq2-sync">{syncMsg || '云端同步已开启'}</div>}
 
       <div className="eq2-search">
         <input value={query} onChange={e => setQuery(e.target.value)} placeholder="搜设备编号或名称，如 7608 / Roof / 荷花灯" />
@@ -232,6 +272,7 @@ export function EquipApp() {
                     <div className="eq2-rowmain">
                       <div className="eq2-dname">{d.name}<span className={'eq2-dot' + (rec ? ' bad' : '')} /></div>
                       {rec && <div className="eq2-reason">{`故障原因：${rec.reason}`}</div>}
+                      {rec && rec.reporter && <div className="eq2-reporter">{`记录人：${rec.reporter}`}</div>}
                     </div>
                     {rec && <button className="eq2-edit" onClick={() => setDialog({ uid: d.uid, mode: 'edit', text: rec.reason })}>编辑原因</button>}
                     <button className={'eq2-cb' + (rec ? ' on' : '')} aria-label={rec ? '取消勾选' : '勾选故障'} onClick={() => rec ? uncheck(d) : setDialog({ uid: d.uid, mode: 'new', text: '' })}>{rec ? '✓' : ''}</button>

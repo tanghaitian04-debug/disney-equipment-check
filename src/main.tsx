@@ -4,13 +4,26 @@ import { createRoot } from 'react-dom/client';
 import { PEOPLE, POSITIONS, SLOT_OF, SLOTS, dateLabel, buildText, doorLabel, slotAssignments } from './schedule.mjs';
 import { EquipApp } from './equip2';
 import { OverviewApp } from './overview';
+import { MineApp } from './mine';
+// @ts-ignore plain ESM logic with unit tests
+import { loadSession } from './cloud.mjs';
 import './style.css';
 
 const STORE = 'stage-schedule-v1';
 type Doors = Record<string, { z?: boolean; s?: boolean }>;
+type Session = { token: string; username: string; name: string; mustChange: boolean };
+const MAPS = [
+  { src: '/maps/map-laser.jpg', title: '激光点位总图', desc: 'LASER 4 / 5 / 6 与 401–611 点位' },
+  { src: '/maps/map-castle-dmx.jpg', title: '城堡正面点位', desc: 'J01–J11 · DMX 地址与安全码' },
+  { src: '/maps/map-castle-elev.jpg', title: '城堡立面点位', desc: 'J 点位在城堡立面上的分布' },
+  { src: '/maps/map-wheel.jpg', title: '城堡 Wheel 位置', desc: 'WR / WZ / WL · DMX 104–134' },
+  { src: '/maps/map-garden-af.jpg', title: '花园灯位图', desc: 'A01–A11 · F01–F27 点位' },
+  { src: '/maps/map-garden-plan.jpg', title: '花园平面点位', desc: 'CP / CF / F 点位平面图' },
+];
 
 const I = {
-  home: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 11l8-7 8 7" /><path d="M6 9.5V20h12V9.5" /><path d="M10 20v-5h4v5" /></svg>,
+  home: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2.6v2.2" /><path d="M12 2.6l2.8.9-2.8.9" fill="currentColor" stroke="none" /><path d="M9.6 7.6L12 5.2l2.4 2.4" /><path d="M10.1 7.4v5.1h3.8V7.4" /><path d="M4.6 21v-9.4L6.1 9.9l1.5 1.7V21" /><path d="M16.4 21v-9.4l1.5-1.7 1.5 1.7V21" /><path d="M7.6 15h2.5M13.9 15h2.5" /><path d="M10.9 21v-2.5a1.1 1.1 0 0 1 2.2 0V21" /><path d="M4.6 21h14.8" /></svg>,
+  castle: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2.6v2.2" /><path d="M12 2.6l2.8.9-2.8.9" fill="currentColor" stroke="none" /><path d="M9.6 7.6L12 5.2l2.4 2.4" /><path d="M10.1 7.4v5.1h3.8V7.4" /><path d="M4.6 21v-9.4L6.1 9.9l1.5 1.7V21" /><path d="M16.4 21v-9.4l1.5-1.7 1.5 1.7V21" /><path d="M7.6 15h2.5M13.9 15h2.5" /><path d="M10.9 21v-2.5a1.1 1.1 0 0 1 2.2 0V21" /><path d="M4.6 21h14.8" /></svg>,
   folder: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></svg>,
   wrench: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14.7 6.3a4.2 4.2 0 0 1 5.9-4L17.8 5l1.6 1.6 2.8-2.8a4.2 4.2 0 0 1-5.6 5.3L9 16.7a2.1 2.1 0 1 1-3-3l2.6-2.6a4.2 4.2 0 0 1 6.1-4.8z" /></svg>,
   me: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="3.6" /><path d="M5 20c1.2-3.2 3.8-4.8 7-4.8s5.8 1.6 7 4.8" /></svg>,
@@ -34,6 +47,9 @@ function App() {
     return 0;
   });
   const advTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [session, setSession] = useState<Session | null>(() => loadSession(localStorage) as Session | null);
+  const [filesView, setFilesView] = useState<'root' | 'maps'>('root');
+  const [mapOpen, setMapOpen] = useState<number | null>(null);
   const [generated, setGenerated] = useState('');
   const [showPreview, setShowPreview] = useState(false);
   const [toast, setToast] = useState('');
@@ -137,6 +153,7 @@ function App() {
     { id: 'files', label: '文件', icon: I.folder },
     { id: 'device', label: '设备', icon: I.wrench },
     { id: 'overview', label: '故障全览', icon: I.alert },
+    { id: 'mine', label: '我的', icon: I.me },
   ];
 
   return (
@@ -146,7 +163,7 @@ function App() {
         {tab === 'home' && (
           <>
             <div className="hero">
-              <div className="eyebrow">NTS TEAM</div>
+              <div className="eyebrow"><span className="hero-castle">{I.castle}</span>NTS TEAM</div>
               <h1>舞台工具箱</h1>
               <p>排班：一人一卡，点岗位自动跳下一位，生成文案发微信群。</p>
             </div>
@@ -155,6 +172,11 @@ function App() {
               <div><div className="dlabel">今日日期</div><div className="dbig">{today.key.replace(/-/g, '.')}</div></div>
               <span className="wd">{today.label.split(' ')[1]}</span>
             </div>
+            <a className="rostercard" href="/files/roster-1115-1121.pdf" target="_blank" rel="noreferrer">
+              <span className="rc-head"><span className="rc-title">本周班表</span><span className="rc-range">11月15日 – 11月21日</span><span className="rc-open">打开完整 PDF ›</span></span>
+              <span className="rc-imgwrap"><img src="/files/roster-1115-1121.jpg" alt="11月15日至11月21日班表预览" loading="lazy" /></span>
+              <span className="rc-hint">点开可看完整班表（PDF）</span>
+            </a>
             <div className="statusrow">
               <span id="progress">{`岗位已填 ${filled} / ${SLOTS.length} · 已安排 ${Object.keys(assign).filter(k => assign[k]).length} 人${doorCount ? ` · 大门板 ${doorCount} 人` : ''}`}</span>
               <button id="btn-clear" onClick={clearToday}>清空重选</button>
@@ -206,16 +228,32 @@ function App() {
           </>
         )}
 
-        {tab === 'files' && (
+        {tab === 'files' && filesView === 'root' && (
           <>
-            <div className="sect-title">工具</div>
-            <div className="toolgrid">
-              <button className="toolcard c1" onClick={() => setTab('home')}><h3>舞台排班工具</h3><p>人员勾选 / 生成文案 / 复制排班</p><span className="go">›</span></button>
-              <button className="toolcard c2" onClick={() => setTab('device')}><h3>设备故障记录</h3><p>456 台设备目录 · 勾选填故障原因 · 一键复制报告</p><span className="go">›</span></button>
-              <button className="toolcard c3 off" disabled><h3>设备图</h3><p>激光点位图 / 城堡特效图 / 花园特效图 / 花园烟机</p><span className="soon">敬请期待</span></button>
-              <button className="toolcard c4 off" disabled><h3>特效物料登记表</h3><p>燃料领用 / 库存剩余 / 登记记录</p><span className="soon">敬请期待</span></button>
+            <div className="sect-title">文件</div>
+            <button className="mapentry" onClick={() => setFilesView('maps')}>
+              <span className="mapentry-txt"><h3>设备图</h3><p>激光点位 · 城堡点位与安全码 · 花园灯位，共 6 张</p></span>
+              <span className="go">›</span>
+            </button>
+            <p className="me-note">点开设备图，现场找点位、查 DMX 和安全码时直接看。图看不清可以点开大图放大。</p>
+          </>
+        )}
+
+        {tab === 'files' && filesView === 'maps' && (
+          <>
+            <div className="backbar">
+              <button onClick={() => setFilesView('root')}>‹ 返回</button>
+              <span>设备图 · 点任意一张看大图</span>
             </div>
-            <p className="me-note">从这里进入对应工具。后两个还没做，你需要的话跟我说，我加上。</p>
+            <div className="mapgrid">
+              {MAPS.map((m, i) => (
+                <button key={m.src} className="mapcard" onClick={() => setMapOpen(i)}>
+                  <span className="mapthumb"><img src={m.src} alt={m.title} loading="lazy" /></span>
+                  <span className="maptitle">{m.title}</span>
+                  <span className="mapdesc">{m.desc}</span>
+                </button>
+              ))}
+            </div>
           </>
         )}
 
@@ -223,13 +261,32 @@ function App() {
           <>
             <div className="backbar">
               <button onClick={() => setTab('home')}>‹ 返回首页</button>
-              <span>设备故障快速记录 · 记录保存在本机</span>
+              <span>{session ? '设备故障记录 · 云端实时同步' : '设备故障记录'}</span>
             </div>
-            <EquipApp />
+            {session ? <EquipApp session={session} /> : (
+              <div className="gatecard">
+                <h3>登录后使用团队设备记录</h3>
+                <p>设备故障现在全班共享：你记的故障，同事打开就能看到；同事记的，你也能看到。用你自己的账号登录一次就行（30 天内免登录）。</p>
+                <button onClick={() => setTab('mine')}>去登录</button>
+              </div>
+            )}
           </>
         )}
 
-        {tab === 'overview' && <OverviewApp />}
+        {tab === 'overview' && (session ? <OverviewApp session={session} /> : (
+          <div className="gatecard">
+            <h3>登录后查看故障全览</h3>
+            <p>全览里是全班共享的故障记录，登录后就能看，还能一键复制报告。</p>
+            <button onClick={() => setTab('mine')}>去登录</button>
+          </div>
+        ))}
+
+        {tab === 'mine' && (
+          <>
+            <div className="sect-title">我的</div>
+            <MineApp session={session} onSession={setSession} notify={notify} />
+          </>
+        )}
       </div>
 
       {tab === 'home' && (
@@ -245,6 +302,13 @@ function App() {
         ))}
       </nav>
 
+      {mapOpen !== null && (
+        <div className="mapviewer" onClick={() => setMapOpen(null)}>
+          <div className="mv-bar"><span>{MAPS[mapOpen].title}</span><button onClick={() => setMapOpen(null)}>关闭 ✕</button></div>
+          <div className="mv-scroll"><img src={MAPS[mapOpen].src} alt={MAPS[mapOpen].title} /></div>
+          <div className="mv-hint">双指捏合可以放大看细节</div>
+        </div>
+      )}
       {toast && <div id="toast">{toast}</div>}
       {updateReady && <button className="update-banner" onClick={() => location.reload()}>新版本已准备好 · 点击更新（数据不丢）</button>}
     </>

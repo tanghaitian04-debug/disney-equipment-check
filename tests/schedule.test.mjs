@@ -11,7 +11,7 @@ const EXAMPLE = {
 
 test('名单17人、岗位12个、无英文名', () => {
   assert.equal(PEOPLE.length, 17);
-  assert.equal(POSITIONS.length, 12);
+  assert.equal(POSITIONS.length, 11);
   assert.ok(PEOPLE.every(n => !/[A-Za-z]/.test(n)));
 });
 
@@ -39,9 +39,9 @@ test('大门板标注：装、收、装收分别追加在人名后', () => {
   assert.ok(text.includes('【激光操作员】: 马强\n'));
 });
 
-test('激光2与激光观察员同落一岗；空岗留空', () => {
-  const by = slotAssignments({ '陈军': '激光2', '贺坤华': '激光观察员' });
-  assert.equal(by['激光观察员'].length, 2);
+test('激光2即激光观察员（独立选项已删）；空岗留空', () => {
+  const by = slotAssignments({ '陈军': '激光2' });
+  assert.deepEqual(by['激光观察员'], ['陈军']);
   const text = buildText('2026年11月13日 星期五', { '陈军': '激光3' });
   assert.ok(text.includes('【激光操作员】: \n'));
 });
