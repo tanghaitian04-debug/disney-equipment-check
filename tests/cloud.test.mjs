@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { diffOps, enqueueOps, applyOpsToMap, normalizeDay, pullAndMerge, flushQueue, pushOps, loadQueue, loadSession, saveSession, clearSession, apiLogin } from '../src/cloud.mjs';
+import { diffOps, enqueueOps, applyOpsToMap, normalizeDay, pullAndMerge, flushQueue, pushOps, loadQueue, loadSession, saveSession, clearSession, apiLogin, apiSetShows, apiSetRosterPdf } from '../src/cloud.mjs';
 import { KEY2 } from '../src/equipmodel.mjs';
 
 const fakeStorage = () => {
@@ -128,5 +128,39 @@ test('apiLogin persists the role from the login response', async () => {
     const s = await apiLogin(st, 'qiqi', '000000');
     assert.equal(s.role, 'manager');
     assert.equal(loadSession(st).role, 'manager');
+  } finally { globalThis.fetch = realFetch; }
+});
+
+test('manager writes actually reach the API (authedApi currying regression)', async () => {
+  const st = fakeStorage();
+  saveSession(st, { token: 'tok-mgr', username: 'qiqi', name: '七七', mustChange: false, role: 'manager' });
+  const sent = [];
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (url, opts) => { sent.push(JSON.parse(opts.body)); return { ok: true, json: async () => ({ ok: true }) }; };
+  try {
+    const r = await apiSetShows(st, [{ date: '2026-11-23', text: '（一场）20:30' }]);
+    assert.equal(r.ok, true);
+    assert.equal(sent.length, 1);
+    assert.equal(sent[0].action, 'setShows');
+    assert.equal(sent[0].token, 'tok-mgr');
+    assert.deepEqual(sent[0].entries, [{ date: '2026-11-23', text: '（一场）20:30' }]);
+    sent.length = 0;
+    const rp = await apiSetRosterPdf(st, 'QUJD', 'test-label');
+    assert.equal(rp.ok, true);
+    assert.equal(sent.length, 1);
+    assert.equal(sent[0].action, 'setRosterPdf');
+    assert.equal(sent[0].token, 'tok-mgr');
+    assert.equal(sent[0].chunk, 'QUJD');
+    assert.equal(sent[0].label, 'test-label');
+  } finally { globalThis.fetch = realFetch; }
+});
+
+test('apiSetShows surfaces server errors instead of fake success', async () => {
+  const st = fakeStorage();
+  saveSession(st, { token: 'tok-mem', username: 'maqiang', name: '马强', mustChange: false, role: 'member' });
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async () => ({ ok: true, json: async () => ({ ok: false, error: 'FORBIDDEN' }) });
+  try {
+    await assert.rejects(() => apiSetShows(st, [{ date: '2026-11-23', text: 'x' }]), /FORBIDDEN/);
   } finally { globalThis.fetch = realFetch; }
 });

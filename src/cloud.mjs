@@ -211,7 +211,7 @@ export async function apiGetShows() {
   catch { return null; }
 }
 export async function apiSetShows(storage, entries) {
-  return authedApi(storage, { action: 'setShows', entries });
+  return authedApi(storage)({ action: 'setShows', entries });
 }
 export async function apiGetRosterMeta() {
   try { const r = await callApi({ action: 'getRosterMeta' }); return r && r.ok ? r : null; }
@@ -247,7 +247,7 @@ export async function apiSetRosterPdf(storage, base64, label) {
     if (part === 0) payload.label = label;
     let lastErr = null, done = false;
     for (let att = 0; att < 3 && !done; att++) {
-      try { await authedApi(storage, payload); done = true; }
+      try { await authedApi(storage)(payload); done = true; }
       catch (e) { lastErr = e; }
     }
     if (!done) throw lastErr;

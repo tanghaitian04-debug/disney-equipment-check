@@ -46,9 +46,10 @@ function App() {
   const [shows, setShowsState] = useState<any[]>(SHOWS);
   const [rosterMeta, setRosterMeta] = useState<any>(null);
   useEffect(() => {
+    if (tab !== 'home') return;
     apiGetShows().then((list: any) => { if (Array.isArray(list) && list.length) setShowsState(list); }).catch(() => {});
     apiGetRosterMeta().then((m: any) => setRosterMeta(m)).catch(() => {});
-  }, []);
+  }, [tab]);
   const openCloudPdf = async () => {
     const b64 = await apiGetRosterPdf();
     if (!b64) { window.alert('PDF 加载失败，请稍后再试'); return; }
