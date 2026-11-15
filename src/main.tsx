@@ -27,17 +27,18 @@ function App() {
     try { const s = JSON.parse(localStorage.getItem(STORE) || 'null'); if (s && s.dateKey === dateLabel().key) return s.doors || {}; } catch {}
     return {};
   });
-  const [sheetPerson, setSheetPerson] = useState<string | null>(null);
-  const [selPos, setSelPos] = useState('');
-  const [selDoors, setSelDoors] = useState<{ z: boolean; s: boolean }>({ z: false, s: false });
+  const [cur, setCur] = useState<number>(() => {
+    try { const s = JSON.parse(localStorage.getItem(STORE) || 'null'); if (s && s.dateKey === dateLabel().key && typeof s.idx === 'number') return Math.min(Math.max(s.idx, 0), PEOPLE.length - 1); } catch {}
+    return 0;
+  });
+  const advTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [generated, setGenerated] = useState('');
   const [showPreview, setShowPreview] = useState(false);
   const [toast, setToast] = useState('');
   const [updateReady, setUpdateReady] = useState(false);
-  const [flash, setFlash] = useState(-1);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => { try { localStorage.setItem(STORE, JSON.stringify({ dateKey: today.key, assign, doors })); } catch {} }, [assign, doors, today.key]);
+  useEffect(() => { try { localStorage.setItem(STORE, JSON.stringify({ dateKey: today.key, assign, doors, idx: cur })); } catch {} }, [assign, doors, cur, today.key]);
   useEffect(() => {
     // Auto-apply updates: when a new service worker takes over and this page was
     // already controlled by an older one, reload once so the user never has to
@@ -76,39 +77,41 @@ function App() {
   const missing = SLOTS.filter(s => !by[s].length);
   const doorCount = PEOPLE.filter(p => doors[p] && (doors[p].z || doors[p].s)).length;
 
-  const openSheet = (person: string) => {
-    setSheetPerson(person);
-    setSelPos(assign[person] || '');
-    setSelDoors({ z: !!doors[person]?.z, s: !!doors[person]?.s });
-  };
-  const focusNext = (after: string, next: Record<string, string>) => {
-    const idx = PEOPLE.indexOf(after);
+  const person = PEOPLE[cur];
+  const occupantOf = (pos: string) => PEOPLE.find(p => assign[p] === pos);
+  const nextFree = (from: number, next: Record<string, string>) => {
     for (let k = 1; k <= PEOPLE.length; k++) {
-      const j = (idx + k) % PEOPLE.length;
-      if (!next[PEOPLE[j]]) {
-        setFlash(j);
-        setTimeout(() => document.getElementById(`person-${j}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 60);
-        setTimeout(() => setFlash(-1), 1300);
-        break;
-      }
+      const j = (from + k) % PEOPLE.length;
+      if (!next[PEOPLE[j]]) return j;
     }
+    return -1;
   };
-  const confirmSheet = () => {
-    if (!sheetPerson) return;
+  const pickPos = (pos: string) => {
+    const p = PEOPLE[cur];
     const nextAssign = { ...assign };
-    if (selPos) nextAssign[sheetPerson] = selPos; else delete nextAssign[sheetPerson];
-    const nextDoors = { ...doors };
-    if (selDoors.z || selDoors.s) nextDoors[sheetPerson] = { z: selDoors.z, s: selDoors.s }; else delete nextDoors[sheetPerson];
-    setAssign(nextAssign); setDoors(nextDoors);
-    const person = sheetPerson; setSheetPerson(null);
-    notify(selPos ? `${person} → ${selPos}` : `已更新 ${person}`);
-    if (selPos) focusNext(person, nextAssign);
+    if (nextAssign[p] === pos) { delete nextAssign[p]; setAssign(nextAssign); return; }
+    nextAssign[p] = pos; setAssign(nextAssign);
+    navigator.vibrate?.(8);
+    if (advTimer.current) clearTimeout(advTimer.current);
+    advTimer.current = setTimeout(() => {
+      const j = nextFree(cur, nextAssign);
+      if (j >= 0) setCur(j); else if (cur < PEOPLE.length - 1) setCur(cur + 1);
+    }, 260);
   };
-  const clearPerson = () => {
-    if (!sheetPerson) return;
-    const nextAssign = { ...assign }; delete nextAssign[sheetPerson];
-    const nextDoors = { ...doors }; delete nextDoors[sheetPerson];
-    setAssign(nextAssign); setDoors(nextDoors); setSheetPerson(null);
+  const toggleDoor = (kind: 'z' | 's') => {
+    const p = PEOPLE[cur];
+    const d = { ...(doors[p] || {}) };
+    if (kind === 'z') d.z = !d.z; else d.s = !d.s;
+    const nextDoors = { ...doors };
+    if (d.z || d.s) nextDoors[p] = { z: !!d.z, s: !!d.s }; else delete nextDoors[p];
+    setDoors(nextDoors);
+  };
+  const clearCur = () => {
+    const p = PEOPLE[cur];
+    if (!assign[p] && !doors[p]) return;
+    const nextAssign = { ...assign }; delete nextAssign[p];
+    const nextDoors = { ...doors }; delete nextDoors[p];
+    setAssign(nextAssign); setDoors(nextDoors); notify(`已清除 ${p}`);
   };
   const doGenerate = (scroll = true) => {
     setGenerated(buildText(today.label, assign, doors));
@@ -143,7 +146,7 @@ function App() {
             <div className="hero">
               <div className="eyebrow">NTS TEAM</div>
               <h1>舞台工具箱</h1>
-              <p>首页就是排班：点人名选岗位，生成文案发微信群。</p>
+              <p>排班：一人一卡，点岗位自动跳下一位，生成文案发微信群。</p>
             </div>
             <div className="datecard">
               <span className="cal">{I.cal}</span>
@@ -155,19 +158,41 @@ function App() {
               <button id="btn-clear" onClick={clearToday}>清空重选</button>
             </div>
             <div id="warn">{dupPositions.length ? `注意：${dupPositions.join('、')} 被选给了不止一个人` : ''}</div>
-            <div className="peoplecard">
-              {PEOPLE.map((person, i) => {
-                const pos = assign[person];
-                const dtag = doorLabel(person, doors).replace(/[（）]/g, '');
-                return (
-                  <button key={person} id={`person-${i}`} className={'person' + (flash === i ? ' flash' : '')} onClick={() => openSheet(person)}>
-                    <span className="idx">{i + 1}</span><span className="pname">{person}</span>
-                    {dtag && <span className="doortag">{dtag}</span>}
-                    {pos ? <span className={'chip' + (counts[pos] > 1 ? ' dup' : '')}>{pos}</span> : <span className="chip none">未选择</span>}
-                    <span className="chev">›</span>
-                  </button>
-                );
-              })}
+            <div className="personcard" key={person}>
+              <div className="pc-head">
+                <span className="pc-bar" />
+                <span className="pc-name">{person}</span>
+                <span className="pc-prog">{`第 ${cur + 1} / ${PEOPLE.length} 人`}</span>
+                {assign[person] ? <span className="pc-chip">{assign[person]}</span> : <span className="pc-chip none">未选择</span>}
+              </div>
+              <div className="posgrid">
+                {POSITIONS.map(pos => {
+                  const occ = occupantOf(pos);
+                  const mine = assign[person] === pos;
+                  return (
+                    <button key={pos} className={'postile' + (mine ? ' on' : '')} onClick={() => pickPos(pos)}>
+                      <span className={'cbox' + (mine ? ' on' : '')}>{mine ? '✓' : ''}</span>
+                      <span className="plabel">{pos}</span>
+                      {occ && !mine && <span className="occ">{occ}</span>}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="doorline">
+                <span className="door-cap">大门板</span>
+                <button className={'doortile' + (doors[person]?.z ? ' on' : '')} onClick={() => toggleDoor('z')}><span className={'cbox' + (doors[person]?.z ? ' on' : '')}>{doors[person]?.z ? '✓' : ''}</span>装大门板</button>
+                <button className={'doortile' + (doors[person]?.s ? ' on' : '')} onClick={() => toggleDoor('s')}><span className={'cbox' + (doors[person]?.s ? ' on' : '')}>{doors[person]?.s ? '✓' : ''}</span>收大门板</button>
+              </div>
+              <div className="navrow">
+                <button disabled={cur === 0} onClick={() => setCur(cur - 1)}>‹ 上一人</button>
+                <button className="clr" onClick={clearCur}>清除此人</button>
+                <button disabled={cur === PEOPLE.length - 1} onClick={() => setCur(cur + 1)}>下一人 ›</button>
+              </div>
+            </div>
+            <div className="jumpstrip">
+              {PEOPLE.map((p, i) => (
+                <button key={p} className={'jchip' + (i === cur ? ' cur' : '') + (assign[p] ? ' done' : '')} onClick={() => setCur(i)}>{p}{assign[p] ? ' ✓' : ''}</button>
+              ))}
             </div>
             {showPreview && (
               <section id="preview-wrap">
@@ -207,7 +232,7 @@ function App() {
             <div className="sect-title">我的</div>
             <div className="mecard">
               <div className="inforow"><span className="k">今日日期</span><span className="v">{today.label}</span></div>
-              <div className="inforow"><span className="k">版本</span><span className="v">舞台工具箱 V1.2.1</span></div>
+              <div className="inforow"><span className="k">版本</span><span className="v">舞台工具箱 V1.3.0</span></div>
               <div className="inforow"><span className="k">排班名单</span><span className="v">17 人 · 按班表顺序</span></div>
               <div className="inforow"><span className="k">数据存储</span><span className="v">仅保存在本机浏览器</span></div>
             </div>
@@ -231,34 +256,6 @@ function App() {
         ))}
       </nav>
 
-      {sheetPerson && (
-        <div id="sheet" role="dialog" aria-modal="true" onClick={e => { if (e.target === e.currentTarget) setSheetPerson(null); }}>
-          <div className="sheet-panel">
-            <h3 id="sheet-name">{sheetPerson}</h3>
-            <p className="sub">先点今天的岗位，再勾大门板（没有就不勾），最后点确定。</p>
-            <div id="chips">
-              {POSITIONS.map(pos => {
-                const taken = PEOPLE.some(p => p !== sheetPerson && assign[p] === pos);
-                return (
-                  <button key={pos} className={'pos' + (selPos === pos ? ' active' : '') + (taken ? ' taken' : '')} onClick={() => setSelPos(pos)}>
-                    {pos + (taken ? '（已有人）' : '')}
-                  </button>
-                );
-              })}
-            </div>
-            <div className="door-title">大门板（可多选，会写在人名后面）</div>
-            <div className="door-row">
-              <button className={'door' + (selDoors.z ? ' on' : '')} onClick={() => setSelDoors(d => ({ ...d, z: !d.z }))}>装大门板</button>
-              <button className={'door' + (selDoors.s ? ' on' : '')} onClick={() => setSelDoors(d => ({ ...d, s: !d.s }))}>收大门板</button>
-            </div>
-            <div className="sheet-actions">
-              <button id="sheet-clear" onClick={clearPerson}>不安排 / 清除</button>
-              <button onClick={() => setSheetPerson(null)}>关闭</button>
-              <button className="ok" onClick={confirmSheet}>确定</button>
-            </div>
-          </div>
-        </div>
-      )}
       {toast && <div id="toast">{toast}</div>}
       {updateReady && <button className="update-banner" onClick={() => location.reload()}>新版本已准备好 · 点击更新（数据不丢）</button>}
     </>

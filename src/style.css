@@ -29,18 +29,35 @@ button{font:inherit;cursor:pointer;touch-action:manipulation}
 #progress{font-size:12.5px;color:var(--txt-2);letter-spacing:.5px}
 #btn-clear{border:0;background:none;color:var(--txt-3);font-size:12px;padding:6px 2px}
 #warn{font-size:12px;color:var(--danger);min-height:18px;line-height:1.6;margin:0 2px}
-.peoplecard{background:rgba(255,255,255,.04);border:1px solid var(--card-line);border-radius:18px;padding:2px 14px}
-.person{display:flex;align-items:center;gap:11px;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid rgba(255,255,255,.07);padding:11px 0;min-height:52px;color:var(--txt)}
-.person:last-child{border-bottom:0}
-.person:active{background:rgba(255,255,255,.05)}
-.person.flash{background:rgba(232,195,122,.12)}
-.person .idx{font-size:11px;color:var(--txt-3);min-width:19px;font-variant-numeric:tabular-nums}
-.person .pname{font-size:16.5px;font-weight:600;letter-spacing:.5px}
-.person .doortag{font-size:11px;color:var(--gold);border:1px solid rgba(232,195,122,.4);border-radius:999px;padding:3px 8px;white-space:nowrap}
-.person .chip{margin-left:auto;font-size:12.5px;font-weight:700;background:var(--gold);color:var(--gold-ink);border-radius:999px;padding:5px 12px;white-space:nowrap}
-.person .chip.none{margin-left:auto;background:none;color:var(--txt-3);border:1px dashed rgba(255,255,255,.25);font-weight:500}
-.person .chip.dup{background:var(--danger);color:#2b0f08}
-.person .chev{color:var(--txt-3);font-size:18px}
+.personcard{background:rgba(255,255,255,.04);border:1px solid var(--card-line);border-radius:18px;padding:16px 14px 12px;animation:cardin .16s ease}
+@keyframes cardin{from{opacity:.35;transform:translateY(5px)}to{opacity:1;transform:none}}
+.pc-head{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.pc-bar{width:5px;height:26px;border-radius:3px;background:var(--gold)}
+.pc-name{font-size:24px;font-weight:800;letter-spacing:1px}
+.pc-prog{font-size:12px;color:var(--txt-3);white-space:nowrap}
+.pc-chip{margin-left:auto;font-size:12.5px;font-weight:700;background:var(--gold);color:var(--gold-ink);border-radius:999px;padding:5px 12px;white-space:nowrap}
+.pc-chip.none{background:none;color:var(--txt-3);border:1px dashed rgba(255,255,255,.25);font-weight:500}
+.posgrid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.postile{display:flex;align-items:center;gap:9px;min-height:54px;padding:8px 12px;border-radius:14px;border:1px solid rgba(255,255,255,.10);background:rgba(255,255,255,.045);color:var(--txt);font-size:15.5px;font-weight:600;text-align:left}
+.postile:active{transform:scale(.985)}
+.postile.on{border-color:var(--gold);background:rgba(232,195,122,.13)}
+.cbox{flex:none;width:22px;height:22px;border-radius:6px;border:1.5px solid rgba(255,255,255,.35);display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--gold-ink);background:rgba(255,255,255,.03)}
+.cbox.on{background:var(--gold);border-color:var(--gold)}
+.plabel{flex:1}
+.occ{font-size:11.5px;color:var(--txt-3);font-weight:500;white-space:nowrap}
+.doorline{display:flex;align-items:center;gap:9px;margin-top:12px}
+.door-cap{font-size:12.5px;color:var(--txt-2);letter-spacing:1px;flex:none}
+.doortile{flex:1;display:flex;align-items:center;justify-content:center;gap:8px;min-height:46px;border-radius:12px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:var(--txt);font-size:14px;font-weight:600}
+.doortile.on{border-color:var(--gold);background:rgba(232,195,122,.13)}
+.navrow{display:flex;gap:9px;margin-top:12px}
+.navrow button{flex:1;min-height:46px;border-radius:12px;border:1px solid rgba(255,255,255,.16);background:transparent;color:var(--txt);font-size:14.5px;font-weight:600}
+.navrow button:disabled{opacity:.32}
+.navrow .clr{color:var(--danger);flex:.8}
+.jumpstrip{display:flex;gap:7px;overflow-x:auto;padding:12px 2px 4px;scrollbar-width:none}
+.jumpstrip::-webkit-scrollbar{display:none}
+.jchip{flex:none;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.04);color:var(--txt-2);border-radius:999px;padding:7px 13px;font-size:13.5px;font-weight:600}
+.jchip.done{color:var(--gold);border-color:rgba(232,195,122,.45)}
+.jchip.cur{background:var(--gold);border-color:var(--gold);color:var(--gold-ink)}
 #preview-wrap{margin-top:20px}
 #preview-wrap h2{font-size:15px;margin:0 0 4px}
 #miss{font-size:12px;color:var(--gold);line-height:1.7;min-height:20px}
@@ -53,22 +70,7 @@ button{font:inherit;cursor:pointer;touch-action:manipulation}
 #btn-generate{background:var(--gold);border-color:var(--gold);color:var(--gold-ink);flex:1.25}
 
 /* —— 选岗位面板 —— */
-#sheet{position:fixed;inset:0;background:rgba(2,6,18,.62);z-index:60;display:flex;align-items:flex-end;justify-content:center}
-.sheet-panel{background:#0d2450;width:100%;max-width:640px;border-radius:20px 20px 0 0;padding:18px 18px calc(16px + env(safe-area-inset-bottom));box-shadow:0 -12px 40px rgba(0,0,0,.5);border-top:1px solid var(--card-line);max-height:88vh;overflow-y:auto}
-.sheet-panel h3{margin:0;font-size:19px;color:var(--txt)}
-.sheet-panel .sub{font-size:12px;color:var(--txt-2);margin:5px 0 13px;line-height:1.6}
-#chips{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-#chips .pos{min-height:47px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.04);border-radius:10px;font-size:14.5px;font-weight:600;color:var(--txt);padding:6px 2px}
-#chips .pos.active{background:var(--gold);border-color:var(--gold);color:var(--gold-ink)}
-#chips .pos.taken{color:var(--txt-3);font-size:12.5px}
-.door-title{font-size:12.5px;color:var(--txt-2);letter-spacing:1px;margin:16px 0 8px}
-.door-row{display:flex;gap:8px}
-.door-row .door{flex:1;min-height:47px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.04);border-radius:10px;font-size:14.5px;font-weight:600;color:var(--txt)}
-.door-row .door.on{background:var(--gold);border-color:var(--gold);color:var(--gold-ink)}
-.sheet-actions{display:flex;gap:9px;margin-top:16px}
-.sheet-actions button{flex:1;min-height:48px;border-radius:11px;border:1px solid rgba(255,255,255,.2);background:transparent;color:var(--txt);font-size:14.5px;font-weight:600}
-.sheet-actions .ok{background:var(--gold);border-color:var(--gold);color:var(--gold-ink);flex:1.4}
-#sheet-clear{color:var(--danger)}
+
 
 /* —— 全局标签栏 —— */
 .tabbar-main{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:640px;height:var(--tabh);z-index:40;display:flex;background:rgba(6,17,40,.94);backdrop-filter:blur(14px);border-top:1px solid var(--card-line);padding-bottom:env(safe-area-inset-bottom)}
@@ -282,6 +284,6 @@ button{font:inherit;cursor:pointer;touch-action:manipulation}
 .homebg::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(6,17,40,.40),rgba(6,17,40,.62) 42%,rgba(4,11,32,.93) 76%)}
 .hero h1,.hero p{text-shadow:0 1px 10px rgba(3,8,20,.65)}
 .shell.hasbg .datecard{background:rgba(7,18,42,.58);backdrop-filter:blur(6px)}
-.shell.hasbg .peoplecard{background:rgba(7,18,42,.87)}
+.shell.hasbg .personcard{background:rgba(7,18,42,.87)}
 .shell.hasbg #preview{background:rgba(7,18,42,.88)}
-.shell.hasbg .person .chip.none{border-color:rgba(255,255,255,.35)}
+.shell.hasbg .pc-chip.none{border-color:rgba(255,255,255,.35)}
