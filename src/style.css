@@ -106,7 +106,7 @@ button{font:inherit;cursor:pointer;touch-action:manipulation}
 .backbar span{font-size:13px;color:var(--txt-2)}
 
 #toast{position:fixed;top:calc(12px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:70;background:var(--gold);color:var(--gold-ink);border-radius:999px;padding:10px 18px;font-size:13px;font-weight:650;white-space:nowrap;box-shadow:0 6px 24px rgba(0,0,0,.4)}
-.update-banner{position:fixed;top:calc(10px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:65;background:var(--gold);color:var(--gold-ink);border:0;border-radius:999px;padding:10px 18px;font-size:13px;font-weight:700;box-shadow:0 8px 30px rgba(0,0,0,.45);white-space:nowrap}
+.update-banner{position:fixed;bottom:calc(var(--tabh) + 84px);left:50%;transform:translateX(-50%);z-index:65;background:var(--gold);color:var(--gold-ink);border:0;border-radius:999px;padding:10px 18px;font-size:13px;font-weight:700;box-shadow:0 8px 30px rgba(0,0,0,.45);white-space:nowrap}
 
 
 /* ================= 设备故障记录（内嵌，样式隔离在 .equip 内） ================= */

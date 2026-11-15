@@ -162,7 +162,7 @@ export function MineApp({ session, onSession, notify }: { session: Session | nul
 
       <div className="mine-sect">关于</div>
       <div className="mecard">
-        <div className="inforow"><span className="k">版本</span><span className="v">舞台工具箱 V1.6.0</span></div>
+        <div className="inforow"><span className="k">版本</span><span className="v">舞台工具箱 V1.6.1</span></div>
         <div className="inforow"><span className="k">数据</span><span className="v">故障记录存云端团队空间，本机留缓存</span></div>
         <div className="inforow"><span className="k">头像</span><span className="v">保存在这台手机上</span></div>
       </div>
