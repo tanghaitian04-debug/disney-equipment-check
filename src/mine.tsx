@@ -30,6 +30,7 @@ export function MineApp({ session, onSession, notify }: { session: Session | nul
   const [oldPw, setOldPw] = useState('');
   const [newPw, setNewPw] = useState('');
   const [newPw2, setNewPw2] = useState('');
+  const [pwOpen, setPwOpen] = useState(false);
   const [pwErr, setPwErr] = useState('');
   const [pwOk, setPwOk] = useState('');
   const fileRef = useRef<HTMLInputElement | null>(null);
@@ -148,6 +149,9 @@ export function MineApp({ session, onSession, notify }: { session: Session | nul
       {session.mustChange && <div className="mine-warn">你还在用初始密码 12345678，建议现在就改掉，账号更安全。</div>}
 
       <div className="mine-sect">修改密码</div>
+      {!(session.mustChange || pwOpen) ? (
+        <button className="mine-reload" style={{ marginTop: 10 }} onClick={() => setPwOpen(true)}>修改密码</button>
+      ) : (
       <div className="mine-form">
         <label className="mine-cap">原密码</label>
         <input className="mine-input" type="password" value={oldPw} onChange={e => setOldPw(e.target.value)} autoComplete="current-password" />
@@ -159,10 +163,11 @@ export function MineApp({ session, onSession, notify }: { session: Session | nul
         {pwOk && <div className="mine-ok">{pwOk}</div>}
         <button className="mine-primary ghost" disabled={busy} onClick={doChangePw}>{busy ? '提交中…' : '确认修改密码'}</button>
       </div>
+      )}
 
       <div className="mine-sect">关于</div>
       <div className="mecard">
-        <div className="inforow"><span className="k">版本</span><span className="v">舞台工具箱 V1.6.1</span></div>
+        <div className="inforow"><span className="k">版本</span><span className="v">舞台工具箱 V1.6.2</span></div>
         <div className="inforow"><span className="k">数据</span><span className="v">故障记录存云端团队空间，本机留缓存</span></div>
         <div className="inforow"><span className="k">头像</span><span className="v">保存在这台手机上</span></div>
       </div>
