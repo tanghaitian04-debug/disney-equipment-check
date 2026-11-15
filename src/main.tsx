@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 // @ts-ignore schedule logic is plain ESM with unit tests
 import { PEOPLE, POSITIONS, SLOT_OF, SLOTS, dateLabel, buildText, doorLabel, slotAssignments } from './schedule.mjs';
-import { EquipmentApp } from './equipment';
+import { EquipApp } from './equip2';
 import './style.css';
 
 const STORE = 'stage-schedule-v1';
@@ -209,7 +209,7 @@ function App() {
             <div className="sect-title">工具</div>
             <div className="toolgrid">
               <button className="toolcard c1" onClick={() => setTab('home')}><h3>舞台排班工具</h3><p>人员勾选 / 生成文案 / 复制排班</p><span className="go">›</span></button>
-              <button className="toolcard c2" onClick={() => setTab('device')}><h3>设备故障记录</h3><p>花园灯 / 外围灯 / 城堡 · 对讲机速记后誊抄</p><span className="go">›</span></button>
+              <button className="toolcard c2" onClick={() => setTab('device')}><h3>设备故障记录</h3><p>456 台设备目录 · 勾选填故障原因 · 一键复制报告</p><span className="go">›</span></button>
               <button className="toolcard c3 off" disabled><h3>设备图</h3><p>激光点位图 / 城堡特效图 / 花园特效图 / 花园烟机</p><span className="soon">敬请期待</span></button>
               <button className="toolcard c4 off" disabled><h3>特效物料登记表</h3><p>燃料领用 / 库存剩余 / 登记记录</p><span className="soon">敬请期待</span></button>
             </div>
@@ -223,7 +223,7 @@ function App() {
               <button onClick={() => setTab('home')}>‹ 返回首页</button>
               <span>设备故障快速记录 · 记录保存在本机</span>
             </div>
-            <div className="equip"><EquipmentApp /></div>
+            <EquipApp />
           </>
         )}
 
@@ -232,7 +232,7 @@ function App() {
             <div className="sect-title">我的</div>
             <div className="mecard">
               <div className="inforow"><span className="k">今日日期</span><span className="v">{today.label}</span></div>
-              <div className="inforow"><span className="k">版本</span><span className="v">舞台工具箱 V1.3.0</span></div>
+              <div className="inforow"><span className="k">版本</span><span className="v">舞台工具箱 V1.4.0</span></div>
               <div className="inforow"><span className="k">排班名单</span><span className="v">17 人 · 按班表顺序</span></div>
               <div className="inforow"><span className="k">数据存储</span><span className="v">仅保存在本机浏览器</span></div>
             </div>
