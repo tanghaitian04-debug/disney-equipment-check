@@ -10,6 +10,30 @@ import { loadSession, apiGetShows, apiGetRosterMeta, apiGetRosterPdf } from './c
 import './style.css';
 // @ts-ignore hand-maintained weekly show announcements
 import { SHOWS } from './showdata.mjs';
+// @ts-ignore asset URL for the pdf.js worker used to render the roster preview
+import pdfWorkerUrl from 'pdfjs-dist/legacy/build/pdf.worker.min.js?url';
+
+// Render page 1 of a base64 PDF to a JPEG data URL (homepage roster preview).
+// pdf.js is loaded lazily so it never weighs on the first paint.
+async function renderPdfFirstPage(b64: string): Promise<string> {
+  const pdfjs: any = await import('pdfjs-dist/legacy/build/pdf.js');
+  if (!pdfjs.GlobalWorkerOptions.workerSrc) pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
+  const bin = atob(b64); const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  const pdf = await pdfjs.getDocument({ data: bytes }).promise;
+  try {
+    const page = await pdf.getPage(1);
+    const base = page.getViewport({ scale: 1 });
+    const vp = page.getViewport({ scale: Math.min(2.5, 1240 / base.width) });
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.floor(vp.width); canvas.height = Math.floor(vp.height);
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('no 2d context');
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    await page.render({ canvasContext: ctx, viewport: vp }).promise;
+    return canvas.toDataURL('image/jpeg', 0.85);
+  } finally { try { pdf.destroy(); } catch {} }
+}
 
 const STORE = 'stage-schedule-v1';
 type Doors = Record<string, { z?: boolean; s?: boolean }>;
@@ -50,6 +74,29 @@ function App() {
     apiGetShows().then((list: any) => { if (Array.isArray(list) && list.length) setShowsState(list); }).catch(() => {});
     apiGetRosterMeta().then((m: any) => setRosterMeta(m)).catch(() => {});
   }, [tab]);
+  const [rosterPreview, setRosterPreview] = useState<string | null>(null);
+  const [previewBusy, setPreviewBusy] = useState(false);
+  useEffect(() => {
+    if (!rosterMeta || !rosterMeta.hasPdf) { setRosterPreview(null); return; }
+    let dead = false;
+    (async () => {
+      try {
+        const cached = JSON.parse(localStorage.getItem('toolbox-roster-preview-v1') || 'null');
+        if (cached && cached.updatedAt === rosterMeta.updatedAt && typeof cached.img === 'string' && cached.img) { setRosterPreview(cached.img); return; }
+      } catch {}
+      setPreviewBusy(true);
+      try {
+        const b64 = await apiGetRosterPdf();
+        if (!b64 || dead) return;
+        const img = await renderPdfFirstPage(b64);
+        if (dead) return;
+        setRosterPreview(img);
+        try { localStorage.setItem('toolbox-roster-preview-v1', JSON.stringify({ updatedAt: rosterMeta.updatedAt, img })); } catch {}
+      } catch { /* fall back to the text row */ }
+      if (!dead) setPreviewBusy(false);
+    })();
+    return () => { dead = true; };
+  }, [rosterMeta && rosterMeta.updatedAt]);
   const openCloudPdf = async () => {
     const b64 = await apiGetRosterPdf();
     if (!b64) { window.alert('PDF 加载失败，请稍后再试'); return; }
@@ -198,7 +245,11 @@ function App() {
             {rosterMeta && rosterMeta.hasPdf ? (
               <button type="button" className="rostercard" onClick={openCloudPdf}>
                 <span className="rc-head"><span className="rc-title">本周班表</span><span className="rc-range">{rosterMeta.label || ''}</span><span className="rc-open">打开完整 PDF ›</span></span>
-                <span className="rc-hint">{`经理 ${rosterMeta.updatedBy || ''} 上传 · 点开可看完整班表（PDF）`}</span>
+                {rosterPreview ? (
+                  <span className="rc-imgwrap"><img src={rosterPreview} alt="本周班表预览" /></span>
+                ) : (
+                  <span className="rc-hint">{previewBusy ? '正在生成班表预览…' : `经理 ${rosterMeta.updatedBy || ''} 上传 · 点开可看完整班表（PDF）`}</span>
+                )}
               </button>
             ) : (
               <a className="rostercard" href="/files/roster-1115-1121.pdf" target="_blank" rel="noreferrer">
