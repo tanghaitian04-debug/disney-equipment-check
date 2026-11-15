@@ -8,6 +8,8 @@ import { MineApp } from './mine';
 // @ts-ignore plain ESM logic with unit tests
 import { loadSession } from './cloud.mjs';
 import './style.css';
+// @ts-ignore hand-maintained weekly show announcements
+import { SHOWS } from './showdata.mjs';
 
 const STORE = 'stage-schedule-v1';
 type Doors = Record<string, { z?: boolean; s?: boolean }>;
@@ -162,14 +164,23 @@ function App() {
       <div className={'shell' + (tab === 'home' ? ' hasbg' : ' notoolbar')}>
         {tab === 'home' && (
           <>
-            <div className="hero">
-              <div className="eyebrow"><span className="hero-castle">{I.castle}</span>NTS TEAM</div>
-              <h1>舞台工具箱</h1>
-            </div>
             <div className="datecard">
               <span className="cal">{I.cal}</span>
               <div><div className="dlabel">今日日期</div><div className="dbig">{today.key.replace(/-/g, '.')}</div></div>
               <span className="wd">{today.label.split(' ')[1]}</span>
+            </div>
+            <div className="showbox">
+              <span className="showbox-tag">演出场地</span>
+              {SHOWS.map((sh: any) => {
+                const a = sh.date.split('-').map(Number);
+                return (
+                  <div key={sh.date} className={'showline' + (sh.date === today.key ? ' today' : '')}>
+                    <span className="showline-date">{`${a[1]}月${a[2]}日`}</span>
+                    <span className="showline-txt">{sh.text}</span>
+                    {sh.date === today.key && <span className="mypost-today">今天</span>}
+                  </div>
+                );
+              })}
             </div>
             <a className="rostercard" href="/files/roster-1115-1121.pdf" target="_blank" rel="noreferrer">
               <span className="rc-head"><span className="rc-title">本周班表</span><span className="rc-range">11月15日 – 11月21日</span><span className="rc-open">打开完整 PDF ›</span></span>
