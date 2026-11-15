@@ -481,3 +481,31 @@ button{font:inherit;cursor:pointer;touch-action:manipulation}
 .mine-sect{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:800;margin:20px 2px 0}
 .mine-sect::before{content:"";width:4px;height:15px;border-radius:2px;background:var(--gold)}
 .mine-reload{width:100%;min-height:46px;border-radius:12px;border:1px solid var(--card-line);background:rgba(255,255,255,.04);color:var(--txt-2);font-size:14px;font-weight:600;margin-top:12px}
+
+/* 加入迪士尼 day counter — a keepsake card, not a settings row */
+.join-card{position:relative;display:flex;flex-direction:column;align-items:center;width:100%;margin-top:14px;padding:22px 16px 17px;border-radius:20px;border:1px solid rgba(216,178,90,.5);background:radial-gradient(130% 150% at 50% 0%,#182e56 0%,#0d1c38 58%,#091426 100%);color:#f3e9d2;cursor:pointer;overflow:hidden;box-shadow:0 12px 28px rgba(3,8,20,.45),inset 0 1px 0 rgba(255,255,255,.07);-webkit-tap-highlight-color:transparent;font:inherit;text-align:center}
+.join-card:active{transform:scale(.99)}
+.join-wm{position:absolute;right:-16px;bottom:-20px;width:128px;height:128px;color:rgba(216,178,90,.13);pointer-events:none}
+.join-wm svg{width:100%;height:100%}
+.join-label{font-size:12px;letter-spacing:.42em;text-indent:.42em;color:#d8b25a;font-weight:600}
+.join-numrow{display:flex;align-items:baseline;gap:7px;margin-top:6px}
+.join-num{font-size:54px;line-height:1;font-weight:800;background:linear-gradient(180deg,#f8e5ae 0%,#dcba63 55%,#a87f2c 100%);-webkit-background-clip:text;background-clip:text;color:transparent;font-variant-numeric:tabular-nums}
+.join-unit{font-size:17px;color:#e9d9ae;font-weight:600}
+.join-sub{margin-top:7px;font-size:12px;color:rgba(233,217,174,.55)}
+.join-edit{margin-top:12px}
+.join-edit input[type="date"]{color-scheme:dark}
+.join-edit-btns{display:flex;gap:10px;margin-top:10px;align-items:stretch}
+.join-edit-btns .mine-primary{flex:1}
+.join-edit-btns .mine-reload{margin-top:0;width:auto;padding:0 22px}
+
+/* 我的岗位 — the logged-in user's week from the roster PDF */
+.mypost-card{padding:6px 16px 10px}
+.mypost-week{font-size:12px;color:var(--txt-3);padding:10px 0 4px;letter-spacing:.06em}
+.mypost-row{display:flex;align-items:center;gap:10px;padding:10px 8px;border-bottom:1px solid rgba(255,255,255,.05);border-radius:10px}
+.mypost-row:last-child{border-bottom:none}
+.mypost-row.today{background:rgba(216,178,90,.10);box-shadow:inset 0 0 0 1px rgba(216,178,90,.35)}
+.mypost-date{font-size:14px;font-weight:700;min-width:64px}
+.mypost-wd{font-size:12px;color:var(--txt-3);min-width:30px}
+.mypost-pos{font-size:15px;font-weight:700;color:var(--gold);flex:1}
+.mypost-pos.dim{color:var(--txt-3);font-weight:600}
+.mypost-today{font-size:11px;font-weight:700;color:#0d1c38;background:var(--gold);border-radius:20px;padding:2px 8px}

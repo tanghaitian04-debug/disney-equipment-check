@@ -1,14 +1,37 @@
 import React, { useState, useEffect, useRef } from 'react';
 // @ts-ignore plain ESM logic with unit tests
-import { ACCOUNTS, apiLogin, apiChangePassword, apiLogout, apiSetAvatar, authedApi, loadSession } from './cloud.mjs';
+import { ACCOUNTS, apiLogin, apiChangePassword, apiLogout, apiSetAvatar, apiSetJoinDate, authedApi, loadSession } from './cloud.mjs';
+// @ts-ignore generated from the weekly roster PDF (see ~/workspace/roster-tools/parse_roster.py)
+import { ROSTER } from './rosterdata.mjs';
 
-type Session = { token: string; username: string; name: string; mustChange: boolean; avatar?: string | null };
+type Session = { token: string; username: string; name: string; mustChange: boolean; avatar?: string | null; joinDate?: string | null };
 
 const AVATAR_PREFIX = 'toolbox-avatar-v1:';
 export const avatarKey = (username: string) => AVATAR_PREFIX + username;
 export function loadAvatar(username: string) {
   try { return localStorage.getItem(avatarKey(username)) || '/avatar-default.jpg'; } catch { return '/avatar-default.jpg'; }
 }
+
+const JOIN_PREFIX = 'toolbox-joindate-v1:';
+const joinKey = (username: string) => JOIN_PREFIX + username;
+function loadJoin(username: string): string | null {
+  try { return localStorage.getItem(joinKey(username)) || null; } catch { return null; }
+}
+function beijingTodayKey(): string {
+  const parts = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date());
+  const g = (t: string) => (parts.find(x => x.type === t) || { value: '' }).value;
+  return `${g('year')}-${g('month')}-${g('day')}`;
+}
+function daysBetween(fromKey: string, toKey: string): number {
+  const a = fromKey.split('-').map(Number);
+  const b = toKey.split('-').map(Number);
+  return Math.round((Date.UTC(b[0], b[1] - 1, b[2]) - Date.UTC(a[0], a[1] - 1, a[2])) / 86400000);
+}
+function prettyDate(key: string): string {
+  const a = key.split('-').map(Number);
+  return `${a[0]}年${a[1]}月${a[2]}日`;
+}
+const CASTLE = <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2.6v2.2" /><path d="M12 2.6l2.8.9-2.8.9" fill="currentColor" stroke="none" /><path d="M9.6 7.6L12 5.2l2.4 2.4" /><path d="M10.1 7.4v5.1h3.8V7.4" /><path d="M4.6 21v-9.4L6.1 9.9l1.5 1.7V21" /><path d="M16.4 21v-9.4l1.5-1.7 1.5 1.7V21" /><path d="M7.6 15h2.5M13.9 15h2.5" /><path d="M10.9 21v-2.5a1.1 1.1 0 0 1 2.2 0V21" /><path d="M4.6 21h14.8" /></svg>;
 
 const ERR: Record<string, string> = {
   NO_USER: '账号不存在，请确认名字选对了',
@@ -34,6 +57,20 @@ export function MineApp({ session, onSession, notify }: { session: Session | nul
   const [pwErr, setPwErr] = useState('');
   const [pwOk, setPwOk] = useState('');
   const fileRef = useRef<HTMLInputElement | null>(null);
+  const [joinDate, setJoinDateState] = useState<string | null>(null);
+  const [joinEdit, setJoinEdit] = useState(false);
+  const [joinInput, setJoinInput] = useState('');
+  const [todayKey, setTodayKey] = useState<string>(beijingTodayKey);
+
+  useEffect(() => { if (session) setJoinDateState(session.joinDate || loadJoin(session.username)); }, [session && session.username]);
+
+  // The day counter follows the Beijing calendar: refresh todayKey whenever the page resurfaces.
+  useEffect(() => {
+    const f = () => setTodayKey(beijingTodayKey());
+    document.addEventListener('visibilitychange', f);
+    window.addEventListener('focus', f);
+    return () => { document.removeEventListener('visibilitychange', f); window.removeEventListener('focus', f); };
+  }, []);
 
   useEffect(() => { if (session) setAvatar(session.avatar || loadAvatar(session.username)); }, [session && session.username, session && session.avatar]);
 
@@ -41,6 +78,7 @@ export function MineApp({ session, onSession, notify }: { session: Session | nul
   // phone still holds a locally-saved avatar that the cloud does not have yet
   // (saved before avatars synced), upload it once so it follows the account.
   const migratedRef = useRef(false);
+  const joinMigratedRef = useRef(false);
   useEffect(() => {
     if (!session) return;
     authedApi(localStorage)({ action: 'me' }).then(async (r: any) => {
@@ -57,6 +95,20 @@ export function MineApp({ session, onSession, notify }: { session: Session | nul
         try { local = localStorage.getItem(avatarKey(session.username)); } catch {}
         if (local) {
           try { const next = await apiSetAvatar(localStorage, local); if (next) onSession(next as Session); } catch {}
+        }
+      }
+      const cloudJoin = r && typeof r.joinDate !== 'undefined' ? r.joinDate : undefined;
+      if (cloudJoin) {
+        try { localStorage.setItem(joinKey(session.username), cloudJoin); } catch {}
+        setJoinDateState(cloudJoin);
+        const cur2 = loadSession(localStorage);
+        if (cur2 && (cur2 as any).joinDate !== cloudJoin) onSession({ ...(cur2 as any), joinDate: cloudJoin });
+      } else if (cloudJoin === null && !joinMigratedRef.current) {
+        joinMigratedRef.current = true;
+        const localJ = loadJoin(session.username);
+        if (localJ) {
+          setJoinDateState(localJ);
+          try { const next = await apiSetJoinDate(localStorage, localJ); if (next) onSession(next as Session); } catch {}
         }
       }
     }).catch((e: any) => {
@@ -93,6 +145,19 @@ export function MineApp({ session, onSession, notify }: { session: Session | nul
       if (s) onSession(s as Session);
     } catch (e) { setPwErr(errText(e)); }
     setBusy(false);
+  };
+
+  const doSaveJoin = async () => {
+    if (!session) return;
+    if (!joinInput) { notify('先选一下入职日期'); return; }
+    setJoinDateState(joinInput);
+    try { localStorage.setItem(joinKey(session.username), joinInput); } catch {}
+    setJoinEdit(false);
+    try {
+      const next = await apiSetJoinDate(localStorage, joinInput);
+      if (next) onSession(next as Session);
+      notify('入职日期已保存，天数会每天自动更新');
+    } catch { notify('入职日期先存这台手机，网络恢复后会自动同步'); }
   };
 
   const doLogout = () => {
@@ -171,6 +236,46 @@ export function MineApp({ session, onSession, notify }: { session: Session | nul
 
       {session.mustChange && <div className="mine-warn">你还在用初始密码 12345678，建议现在就改掉，账号更安全。</div>}
 
+      <button className="join-card" onClick={() => { setJoinInput(joinDate || todayKey); setJoinEdit(true); }}>
+        <span className="join-wm">{CASTLE}</span>
+        <span className="join-label">✦ 加入迪士尼 ✦</span>
+        <span className="join-numrow"><span className="join-num">{joinDate ? Math.max(0, daysBetween(joinDate, todayKey)) : 0}</span><span className="join-unit">天</span></span>
+        <span className="join-sub">{joinDate ? `自 ${prettyDate(joinDate)} 入职 · 点按修改` : '点按设置你的入职日期'}</span>
+      </button>
+      {joinEdit && (
+        <div className="join-edit">
+          <label className="mine-cap">入职日期</label>
+          <input className="mine-input" type="date" value={joinInput} max={todayKey} onChange={e => setJoinInput(e.target.value)} />
+          <div className="join-edit-btns">
+            <button className="mine-primary ghost" onClick={doSaveJoin}>保存</button>
+            <button className="mine-reload" onClick={() => setJoinEdit(false)}>取消</button>
+          </div>
+        </div>
+      )}
+
+      {(() => {
+        const mine = (ROSTER.people as any)[session.name] as { date: string; shift: string; pos: string }[] | undefined;
+        if (!mine) return null;
+        const WD = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+        const md = (k: string) => { const a = k.split('-').map(Number); return `${a[1]}月${a[2]}日`; };
+        return (
+          <>
+            <div className="mine-sect">我的岗位</div>
+            <div className="mecard mypost-card">
+              <div className="mypost-week">{`本周 · ${md(ROSTER.week[0])} – ${md(ROSTER.week[6])}`}</div>
+              {mine.map((d, i) => (
+                <div key={d.date} className={'mypost-row' + (d.date === todayKey ? ' today' : '')}>
+                  <span className="mypost-date">{md(d.date)}</span>
+                  <span className="mypost-wd">{WD[i]}</span>
+                  <span className={'mypost-pos' + (d.pos === 'OFF' || d.pos === '空着' ? ' dim' : '')}>{d.pos}{d.shift && d.shift !== 'OFF' ? `（${d.shift}）` : ''}</span>
+                  {d.date === todayKey && <span className="mypost-today">今天</span>}
+                </div>
+              ))}
+            </div>
+          </>
+        );
+      })()}
+
       <div className="mine-sect">修改密码</div>
       {!(session.mustChange || pwOpen) ? (
         <button className="mine-reload" style={{ marginTop: 10 }} onClick={() => setPwOpen(true)}>修改密码</button>
@@ -188,12 +293,6 @@ export function MineApp({ session, onSession, notify }: { session: Session | nul
       </div>
       )}
 
-      <div className="mine-sect">关于</div>
-      <div className="mecard">
-        <div className="inforow"><span className="k">版本</span><span className="v">舞台工具箱 V1.6.3</span></div>
-        <div className="inforow"><span className="k">数据</span><span className="v">故障记录存云端团队空间，本机留缓存</span></div>
-        <div className="inforow"><span className="k">头像</span><span className="v">跟随账号同步，换手机也能看到</span></div>
-      </div>
       <button className="mine-reload" onClick={() => location.reload()}>重新加载最新版</button>
       <button className="me-btn" onClick={doLogout}>退出登录</button>
     </div>

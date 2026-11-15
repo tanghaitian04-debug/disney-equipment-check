@@ -13,12 +13,12 @@ const STORE = 'stage-schedule-v1';
 type Doors = Record<string, { z?: boolean; s?: boolean }>;
 type Session = { token: string; username: string; name: string; mustChange: boolean };
 const MAPS = [
-  { src: '/maps/map-laser.jpg', title: '激光点位总图', desc: 'LASER 4 / 5 / 6 与 401–611 点位' },
-  { src: '/maps/map-castle-dmx.jpg', title: '城堡正面点位', desc: 'J01–J11 · DMX 地址与安全码' },
-  { src: '/maps/map-castle-elev.jpg', title: '城堡立面点位', desc: 'J 点位在城堡立面上的分布' },
-  { src: '/maps/map-wheel.jpg', title: '城堡 Wheel 位置', desc: 'WR / WZ / WL · DMX 104–134' },
-  { src: '/maps/map-garden-af.jpg', title: '花园灯位图', desc: 'A01–A11 · F01–F27 点位' },
-  { src: '/maps/map-garden-plan.jpg', title: '花园平面点位', desc: 'CP / CF / F 点位平面图' },
+  { src: '/maps/map-laser.jpg', title: '激光点位总图' },
+  { src: '/maps/map-castle-dmx.jpg', title: '城堡正面点位' },
+  { src: '/maps/map-castle-elev.jpg', title: '城堡立面点位' },
+  { src: '/maps/map-wheel.jpg', title: '城堡 Wheel 位置' },
+  { src: '/maps/map-garden-af.jpg', title: '花园灯位图' },
+  { src: '/maps/map-garden-plan.jpg', title: '花园平面点位' },
 ];
 
 const I = {
@@ -165,7 +165,6 @@ function App() {
             <div className="hero">
               <div className="eyebrow"><span className="hero-castle">{I.castle}</span>NTS TEAM</div>
               <h1>舞台工具箱</h1>
-              <p>排班：一人一卡，点岗位自动跳下一位，生成文案发微信群。</p>
             </div>
             <div className="datecard">
               <span className="cal">{I.cal}</span>
@@ -232,10 +231,9 @@ function App() {
           <>
             <div className="sect-title">文件</div>
             <button className="mapentry" onClick={() => setFilesView('maps')}>
-              <span className="mapentry-txt"><h3>设备图</h3><p>激光点位 · 城堡点位与安全码 · 花园灯位，共 6 张</p></span>
+              <span className="mapentry-txt"><h3>设备图</h3></span>
               <span className="go">›</span>
             </button>
-            <p className="me-note">点开设备图，现场找点位、查 DMX 和安全码时直接看。图看不清可以点开大图放大。</p>
           </>
         )}
 
@@ -250,7 +248,6 @@ function App() {
                 <button key={m.src} className="mapcard" onClick={() => setMapOpen(i)}>
                   <span className="mapthumb"><img src={m.src} alt={m.title} loading="lazy" /></span>
                   <span className="maptitle">{m.title}</span>
-                  <span className="mapdesc">{m.desc}</span>
                 </button>
               ))}
             </div>

@@ -30,7 +30,7 @@ export function loadSession(storage) {
   try {
     const s = JSON.parse(storage.getItem(SESSION_KEY) || 'null');
     if (!s || typeof s.token !== 'string' || typeof s.username !== 'string') return null;
-    return { token: s.token, username: s.username, name: s.name || s.username, mustChange: !!s.mustChange, avatar: s.avatar || null };
+    return { token: s.token, username: s.username, name: s.name || s.username, mustChange: !!s.mustChange, avatar: s.avatar || null, joinDate: s.joinDate || null };
   } catch { return null; }
 }
 export function saveSession(storage, s) {
@@ -191,7 +191,7 @@ export function authedApi(storage) {
 }
 export async function apiLogin(storage, username, password) {
   const r = await callApi({ action: 'login', username, password });
-  const s = { token: r.token, username: r.username, name: r.name, mustChange: !!r.mustChange, avatar: r.avatar || null };
+  const s = { token: r.token, username: r.username, name: r.name, mustChange: !!r.mustChange, avatar: r.avatar || null, joinDate: r.joinDate || null };
   saveSession(storage, s);
   return s;
 }
@@ -201,6 +201,13 @@ export async function apiChangePassword(storage, oldPassword, newPassword) {
   if (s) saveSession(storage, { ...s, mustChange: false });
 }
 export function apiLogout(storage) { clearSession(storage); }
+// The hire date lives on the account too, so the 加入迪士尼 day counter matches on every phone.
+export async function apiSetJoinDate(storage, joinDate) {
+  await authedApi(storage)({ action: 'setJoinDate', joinDate });
+  const s = loadSession(storage);
+  if (s) { const next = { ...s, joinDate: joinDate || null }; saveSession(storage, next); return next; }
+  return null;
+}
 // Avatars live on the account (users collection) so they follow the login to any phone.
 export async function apiSetAvatar(storage, avatar) {
   await authedApi(storage)({ action: 'setAvatar', avatar });
