@@ -5,6 +5,7 @@ import { PEOPLE, POSITIONS, SLOT_OF, SLOTS, dateLabel, buildText, doorLabel, slo
 import { EquipApp } from './equip2';
 import { OverviewApp } from './overview';
 import { MineApp } from './mine';
+import { WeatherPanel } from './weather';
 // @ts-ignore plain ESM logic with unit tests
 import { loadSession, apiGetShows, apiGetRosterMeta, apiGetRosterPdf } from './cloud.mjs';
 import './style.css';
@@ -333,6 +334,7 @@ function App() {
               </button>
             </div>
             <p className="wind-note">点上面的框跳转到风速平台，再用下面的账户、密码登录（点任意一行就能复制）。</p>
+            <WeatherPanel />
           </>
         )}
 

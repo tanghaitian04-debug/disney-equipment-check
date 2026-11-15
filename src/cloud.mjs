@@ -237,6 +237,12 @@ export async function apiGetRosterPdf() {
     return r && r.ok ? (r.base64 || null) : null;
   } catch { return null; }
 }
+// Wind-page weather (QWeather via the cloud function; credentials stay server-side).
+// Returns the raw {ok, rain, alerts} result, or null on network failure.
+export async function apiGetWeather() {
+  try { const r = await callApi({ action: 'getWeather' }); return r && r.ok ? r : null; }
+  catch { return null; }
+}
 export async function apiSetRosterPdf(storage, base64, label) {
   // Chunked upload in <=45000-char parts (gateway rejects bodies over ~100KB);
   // each part is retried — the free gateway occasionally drops a request.
