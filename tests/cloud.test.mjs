@@ -111,7 +111,9 @@ test('session helpers round-trip and reject junk', () => {
   const storage = fakeStorage();
   assert.equal(loadSession(storage), null);
   saveSession(storage, { token: 't', username: 'tanghaitian', name: '唐海添', mustChange: true });
-  assert.deepEqual(loadSession(storage), { token: 't', username: 'tanghaitian', name: '唐海添', mustChange: true });
+  assert.deepEqual(loadSession(storage), { token: 't', username: 'tanghaitian', name: '唐海添', mustChange: true, avatar: null });
+  saveSession(storage, { token: 't', username: 'tanghaitian', name: '唐海添', mustChange: false, avatar: 'data:image/jpeg;base64,x' });
+  assert.equal(loadSession(storage).avatar, 'data:image/jpeg;base64,x');
   storage.setItem('toolbox-session-v1', '{"nope":1}');
   assert.equal(loadSession(storage), null);
   clearSession(storage);

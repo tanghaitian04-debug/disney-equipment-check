@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 // @ts-ignore plain ESM logic with unit tests
-import { ACCOUNTS, apiLogin, apiChangePassword, apiLogout, authedApi, loadSession } from './cloud.mjs';
+import { ACCOUNTS, apiLogin, apiChangePassword, apiLogout, apiSetAvatar, authedApi, loadSession } from './cloud.mjs';
 
-type Session = { token: string; username: string; name: string; mustChange: boolean };
+type Session = { token: string; username: string; name: string; mustChange: boolean; avatar?: string | null };
 
 const AVATAR_PREFIX = 'toolbox-avatar-v1:';
 export const avatarKey = (username: string) => AVATAR_PREFIX + username;
@@ -35,12 +35,31 @@ export function MineApp({ session, onSession, notify }: { session: Session | nul
   const [pwOk, setPwOk] = useState('');
   const fileRef = useRef<HTMLInputElement | null>(null);
 
-  useEffect(() => { if (session) setAvatar(loadAvatar(session.username)); }, [session && session.username]);
+  useEffect(() => { if (session) setAvatar(session.avatar || loadAvatar(session.username)); }, [session && session.username, session && session.avatar]);
 
-  // Verify the stored session is still valid; drop it if the backend says no.
+  // On open: verify the session, pull the account avatar from the cloud, and if this
+  // phone still holds a locally-saved avatar that the cloud does not have yet
+  // (saved before avatars synced), upload it once so it follows the account.
+  const migratedRef = useRef(false);
   useEffect(() => {
     if (!session) return;
-    authedApi(localStorage)({ action: 'me' }).catch((e: any) => {
+    authedApi(localStorage)({ action: 'me' }).then(async (r: any) => {
+      const cloudAvatar = r && typeof r.avatar !== 'undefined' ? r.avatar : undefined;
+      if (cloudAvatar) {
+        if (cloudAvatar !== session.avatar) {
+          try { localStorage.setItem(avatarKey(session.username), cloudAvatar); } catch {}
+          const cur = loadSession(localStorage);
+          if (cur) onSession({ ...(cur as any), avatar: cloudAvatar });
+        }
+      } else if (cloudAvatar === null && !migratedRef.current) {
+        migratedRef.current = true;
+        let local = null;
+        try { local = localStorage.getItem(avatarKey(session.username)); } catch {}
+        if (local) {
+          try { const next = await apiSetAvatar(localStorage, local); if (next) onSession(next as Session); } catch {}
+        }
+      }
+    }).catch((e: any) => {
       if (e && e.code === 'NOT_LOGGED_IN') { onSession(null); notify('登录已过期，请重新登录'); }
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -89,9 +108,9 @@ export function MineApp({ session, onSession, notify }: { session: Session | nul
     if (!f || !session) return;
     const url = URL.createObjectURL(f);
     const img = new Image();
-    img.onload = () => {
+    img.onload = async () => {
       try {
-        const S = 512;
+        const S = 256;
         const c = document.createElement('canvas'); c.width = S; c.height = S;
         const ctx = c.getContext('2d'); if (!ctx) return;
         const scale = Math.max(S / img.width, S / img.height);
@@ -100,7 +119,11 @@ export function MineApp({ session, onSession, notify }: { session: Session | nul
         const data = c.toDataURL('image/jpeg', 0.85);
         try { localStorage.setItem(avatarKey(session.username), data); } catch {}
         setAvatar(data);
-        notify('头像已更新');
+        try {
+          const next = await apiSetAvatar(localStorage, data);
+          if (next) onSession(next as Session);
+          notify('头像已更新，已同步到你的账号');
+        } catch { notify('头像先存这台手机，网络恢复后会自动同步'); }
       } finally { URL.revokeObjectURL(url); }
     };
     img.onerror = () => { URL.revokeObjectURL(url); notify('这张图片读不了，换一张试试'); };
@@ -167,9 +190,9 @@ export function MineApp({ session, onSession, notify }: { session: Session | nul
 
       <div className="mine-sect">关于</div>
       <div className="mecard">
-        <div className="inforow"><span className="k">版本</span><span className="v">舞台工具箱 V1.6.2</span></div>
+        <div className="inforow"><span className="k">版本</span><span className="v">舞台工具箱 V1.6.3</span></div>
         <div className="inforow"><span className="k">数据</span><span className="v">故障记录存云端团队空间，本机留缓存</span></div>
-        <div className="inforow"><span className="k">头像</span><span className="v">保存在这台手机上</span></div>
+        <div className="inforow"><span className="k">头像</span><span className="v">跟随账号同步，换手机也能看到</span></div>
       </div>
       <button className="mine-reload" onClick={() => location.reload()}>重新加载最新版</button>
       <button className="me-btn" onClick={doLogout}>退出登录</button>
