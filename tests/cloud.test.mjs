@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { diffOps, enqueueOps, applyOpsToMap, normalizeDay, pullAndMerge, flushQueue, pushOps, loadQueue, loadSession, saveSession, clearSession } from '../src/cloud.mjs';
+import { diffOps, enqueueOps, applyOpsToMap, normalizeDay, pullAndMerge, flushQueue, pushOps, loadQueue, loadSession, saveSession, clearSession, apiLogin } from '../src/cloud.mjs';
 import { KEY2 } from '../src/equipmodel.mjs';
 
 const fakeStorage = () => {
@@ -118,4 +118,15 @@ test('session helpers round-trip and reject junk', () => {
   assert.equal(loadSession(storage), null);
   clearSession(storage);
   assert.equal(loadSession(storage), null);
+});
+
+test('apiLogin persists the role from the login response', async () => {
+  const st = fakeStorage();
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async () => ({ ok: true, json: async () => ({ ok: true, token: 'tok1', username: 'qiqi', name: '七七', mustChange: true, role: 'manager', avatar: null, joinDate: null }) });
+  try {
+    const s = await apiLogin(st, 'qiqi', '000000');
+    assert.equal(s.role, 'manager');
+    assert.equal(loadSession(st).role, 'manager');
+  } finally { globalThis.fetch = realFetch; }
 });

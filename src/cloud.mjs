@@ -33,7 +33,7 @@ export function loadSession(storage) {
   try {
     const s = JSON.parse(storage.getItem(SESSION_KEY) || 'null');
     if (!s || typeof s.token !== 'string' || typeof s.username !== 'string') return null;
-    return { token: s.token, username: s.username, name: s.name || s.username, mustChange: !!s.mustChange, avatar: s.avatar || null, joinDate: s.joinDate || null };
+    return { token: s.token, username: s.username, name: s.name || s.username, mustChange: !!s.mustChange, role: s.role || 'member', avatar: s.avatar || null, joinDate: s.joinDate || null };
   } catch { return null; }
 }
 export function saveSession(storage, s) {
@@ -194,7 +194,7 @@ export function authedApi(storage) {
 }
 export async function apiLogin(storage, username, password) {
   const r = await callApi({ action: 'login', username, password });
-  const s = { token: r.token, username: r.username, name: r.name, mustChange: !!r.mustChange, avatar: r.avatar || null, joinDate: r.joinDate || null };
+  const s = { token: r.token, username: r.username, name: r.name, mustChange: !!r.mustChange, role: r.role || 'member', avatar: r.avatar || null, joinDate: r.joinDate || null };
   saveSession(storage, s);
   return s;
 }

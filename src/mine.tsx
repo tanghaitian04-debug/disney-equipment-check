@@ -125,6 +125,10 @@ export function MineApp({ session, onSession, notify }: { session: Session | nul
   useEffect(() => {
     if (!session) return;
     authedApi(localStorage)({ action: 'me' }).then(async (r: any) => {
+      if (r && typeof r.role === 'string' && r.role !== (session as any).role) {
+        const curR = loadSession(localStorage);
+        if (curR) onSession({ ...(curR as any), role: r.role });
+      }
       const cloudAvatar = r && typeof r.avatar !== 'undefined' ? r.avatar : undefined;
       if (cloudAvatar) {
         if (cloudAvatar !== session.avatar) {
