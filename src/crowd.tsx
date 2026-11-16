@@ -66,7 +66,8 @@ function Chart({ today, yesterday, lastWeek, sel, onSel }: any) {
       {slots.map((t, i) => {
         const hh = Number(t.slice(0, 2));
         if (!(t.endsWith(':00') && hh % 2 === 0) && t !== '21:00') return null;
-        return <text key={'x' + t} x={X(i)} y={H - 6} textAnchor="middle" fontSize="8.5" fill="#8fa0bd">{t}</text>;
+        const anchor = i === 0 ? 'start' : i === slots.length - 1 ? 'end' : 'middle';
+        return <text key={'x' + t} x={X(i)} y={H - 6} textAnchor={anchor} fontSize="8.5" fill="#8fa0bd">{t}</text>;
       })}
     </svg>
   );
