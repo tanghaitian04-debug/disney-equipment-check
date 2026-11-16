@@ -5,6 +5,8 @@ import { ACCOUNTS, MANAGER_ACCOUNTS, apiLogin, apiChangePassword, apiLogout, api
 import { SHOWS } from './showdata.mjs';
 // @ts-ignore generated from the weekly roster PDF (see ~/workspace/roster-tools/parse_roster.py)
 import { ROSTER } from './rosterdata.mjs';
+// @ts-ignore pure roster helpers with unit tests
+import { positionsForDay } from './rosterutil.mjs';
 
 type Session = { token: string; username: string; name: string; mustChange: boolean; role?: string; avatar?: string | null; joinDate?: string | null };
 
@@ -320,6 +322,22 @@ export function MineApp({ session, onSession, notify }: { session: Session | nul
                   {d.date === todayKey && <span className="mypost-today">今天</span>}
                 </div>
               ))}
+            </div>
+          </>
+        );
+      })()}
+
+      {isManager && (() => {
+        const tps = positionsForDay(todayKey);
+        return (
+          <>
+            <div className="mine-sect">今日舞台岗位</div>
+            <div className="mecard mgr-today">
+              {tps.length ? (
+                <div className="mgr-today-line">{tps.map(t => <span key={t.pos} className="mgr-pos">{`${t.pos}（${t.names.join('、')}）`}</span>)}</div>
+              ) : (
+                <div className="mgr-note">今日不在当前班表周内，班表更新后显示。</div>
+              )}
             </div>
           </>
         );

@@ -606,3 +606,5 @@ button.rostercard{font:inherit;text-align:left;width:100%;cursor:pointer}
 .cd-rwait.closed{color:var(--txt-3);font-weight:400}
 .cd-inforow{display:flex;justify-content:space-between;gap:10px;font-size:13px;padding:7px 0;border-top:1px solid rgba(255,255,255,.07)}
 .cd-inforow span:first-child{color:var(--txt-2);flex:0 0 auto}
+.mgr-today-line{display:flex;flex-wrap:wrap;gap:7px 8px}
+.mgr-pos{background:rgba(255,255,255,.055);border:1px solid var(--card-line);border-radius:9px;padding:3px 9px;font-size:13.5px;line-height:1.55}
