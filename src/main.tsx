@@ -380,18 +380,19 @@ function App() {
         )}
       </div>
 
-      {tab === 'home' && (
-        <div className="actionbar">
-          <button id="btn-generate" onClick={() => { doGenerate(); navigator.vibrate?.(10); }}>生成文案</button>
-          <button id="btn-copy" onClick={doCopy}>复制</button>
-        </div>
-      )}
-
-      <nav className="tabbar-main">
-        {tabs.map(t => (
-          <button key={t.id} className={tab === t.id ? 'active' : ''} onClick={() => { setTab(t.id); window.scrollTo(0, 0); }}>{t.icon}<span>{t.label}</span></button>
-        ))}
-      </nav>
+      <div className="bottomstack">
+        {tab === 'home' && (
+          <div className="actionbar">
+            <button id="btn-generate" onClick={() => { doGenerate(); navigator.vibrate?.(10); }}>生成文案</button>
+            <button id="btn-copy" onClick={doCopy}>复制</button>
+          </div>
+        )}
+        <nav className="tabbar-main">
+          {tabs.map(t => (
+            <button key={t.id} className={tab === t.id ? 'active' : ''} onClick={() => { setTab(t.id); window.scrollTo(0, 0); }}>{t.icon}<span>{t.label}</span></button>
+          ))}
+        </nav>
+      </div>
 
       {toast && <div id="toast">{toast}</div>}
       {updateReady && <button className="update-banner" onClick={() => location.reload()}>新版本已准备好 · 点击更新（数据不丢）</button>}

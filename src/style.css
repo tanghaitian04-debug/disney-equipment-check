@@ -64,7 +64,8 @@ button{font:inherit;cursor:pointer;touch-action:manipulation}
 #preview{white-space:pre-wrap;word-break:break-word;background:rgba(255,255,255,.045);border:1px solid var(--card-line);border-radius:14px;padding:15px 14px;font-size:13.5px;line-height:1.75;color:var(--txt);margin:8px 0 0;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif}
 
 /* —— 底部动作条（在标签栏上方） —— */
-.actionbar{position:fixed;bottom:var(--tabh);left:50%;transform:translateX(-50%);width:100%;max-width:640px;z-index:39;display:flex;gap:9px;padding:10px 16px;background:rgba(6,17,40,.92);backdrop-filter:blur(12px);border-top:1px solid var(--card-line)}
+.bottomstack{position:fixed;bottom:0;left:0;right:0;margin:0 auto;width:100%;max-width:640px;z-index:40;display:flex;flex-direction:column}
+.actionbar{display:flex;gap:9px;padding:10px 16px;background:rgba(6,17,40,.92);backdrop-filter:blur(12px);border-top:1px solid var(--card-line)}
 .actionbar button{flex:1;min-height:50px;border-radius:13px;font-size:15.5px;font-weight:700;border:1px solid rgba(255,255,255,.22);background:transparent;color:var(--txt)}
 .actionbar button:active{transform:scale(.985)}
 #btn-generate{background:var(--gold);border-color:var(--gold);color:var(--gold-ink);flex:1.25}
@@ -73,7 +74,7 @@ button{font:inherit;cursor:pointer;touch-action:manipulation}
 
 
 /* —— 全局标签栏 —— */
-.tabbar-main{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:640px;height:var(--tabh);z-index:40;display:flex;background:rgba(6,17,40,.94);backdrop-filter:blur(14px);border-top:1px solid var(--card-line);padding-bottom:env(safe-area-inset-bottom)}
+.tabbar-main{width:100%;height:var(--tabh);display:flex;background:rgba(6,17,40,.94);backdrop-filter:blur(14px);border-top:1px solid var(--card-line);padding-bottom:env(safe-area-inset-bottom)}
 .tabbar-main button{flex:1;border:0;background:none;color:var(--txt-3);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:11px;padding-top:6px}
 .tabbar-main button svg{width:23px;height:23px}
 .tabbar-main button.active{color:var(--gold)}
