@@ -225,7 +225,7 @@ function App() {
   return (
     <>
       {tab === 'home' && <div className="homebg" aria-hidden="true" />}
-      <div id="shell" className={'shell' + (tab === 'home' ? ' hasbg' : ' notoolbar')}>
+      <div id="shell" className={'shell tab-' + tab + (tab === 'home' ? ' hasbg' : ' notoolbar')}>
         {tab === 'home' && (
           <>
             <div className="datecard">
