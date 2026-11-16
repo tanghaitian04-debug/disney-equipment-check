@@ -38,6 +38,24 @@ export function recoveredFor(store, day) {
   return DEVICES.filter(d => prev[d.uid] && !cur[d.uid])
     .map(d => ({ d, prevReason: prev[d.uid].reason, prevTime: prev[d.uid].time }));
 }
+// Plan for the one-tap "copy yesterday" action: every fault recorded on the
+// previous inspection day becomes a fresh record on `day` (same device and
+// reason, time = nowIso, reporter = whoever taps, stamped by the sync layer).
+// Devices already recorded on `day` are skipped, never overwritten, and the
+// copied records stay fully editable afterwards (uncheck / edit / clear).
+export function planCopyYesterday(store, day, nowIso) {
+  const yesterdayKey = shiftDay(day, -1);
+  const yRecs = dayRecords(store, yesterdayKey);
+  const tRecs = dayRecords(store, day);
+  const add = {};
+  let skipped = 0;
+  for (const uid of Object.keys(yRecs)) {
+    if (tRecs[uid]) { skipped++; continue; }
+    const r = yRecs[uid];
+    add[uid] = { name: r.name, path: r.path, reason: r.reason, time: nowIso };
+  }
+  return { add, count: Object.keys(add).length, skipped, yesterdayCount: Object.keys(yRecs).length, yesterdayKey };
+}
 // Load the V2 store, migrating legacy V1 records once when V2 does not exist yet.
 export function initStore(storage) {
   const existing = loadStore(storage);

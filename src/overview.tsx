@@ -2,9 +2,9 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 // @ts-ignore plain ESM data with unit tests
 import { DEVICES } from './devices.mjs';
 // @ts-ignore plain ESM logic with unit tests
-import { deviceByUid, inspectionDayKey, dateCN, initStore, dayRecords, recoveredFor, reportText, reportSegments, csvAll, fmtClock, shiftDay } from './equipmodel.mjs';
+import { deviceByUid, inspectionDayKey, dateCN, initStore, saveStore, dayRecords, recoveredFor, reportText, reportSegments, csvAll, fmtClock, shiftDay, planCopyYesterday } from './equipmodel.mjs';
 // @ts-ignore plain ESM logic with unit tests
-import { authedApi, pullAndMerge, apiGetShows } from './cloud.mjs';
+import { authedApi, pullAndMerge, apiGetShows, diffOps, pushOps } from './cloud.mjs';
 // @ts-ignore bundled fallback for the shows band on the report image
 import { SHOWS } from './showdata.mjs';
 
@@ -195,6 +195,37 @@ export function OverviewApp({ session }: { session: Session | null }) {
   const recov = useMemo(() => recoveredFor(store, selDay) as { d: Dev; prevReason: string }[], [store, selDay]);
   const isToday = selDay === currentDay;
 
+  // One-tap "copy yesterday" (same action as on the device page): pull today +
+  // yesterday from the cloud, then mark every yesterday fault as faulted
+  // today. The copies are ordinary records, editable on the device page.
+  const [copyBusy, setCopyBusy] = useState(false);
+  const copyYesterday = async () => {
+    if (!api || copyBusy) return;
+    setCopyBusy(true);
+    try {
+      const yKey = shiftDay(currentDay, -1);
+      let base = store;
+      try {
+        const merged = await pullAndMerge({ storage: localStorage, api, days: [currentDay, yKey] });
+        base = merged as Store;
+        setStore(merged as Store);
+      } catch {}
+      const plan = planCopyYesterday(base, currentDay, new Date().toISOString());
+      if (!plan.yesterdayCount) { notify('昨日没有故障记录'); return; }
+      if (!plan.count) { notify('昨日的故障今天都已记录，无需复制'); return; }
+      if (!confirm(`把昨日（${dateCN(plan.yesterdayKey)}）的 ${plan.count} 条故障复制到今天？复制后可在「设备」页逐条取消或修改。`)) return;
+      const next: Store = { ...base, days: { ...base.days, [currentDay]: { ...(dayRecords(base, currentDay) as Record<string, Rec>), ...plan.add } } };
+      const ops = diffOps(base, next);
+      setStore(next); saveStore(localStorage, next);
+      if (ops.length) { try { await pushOps({ storage: localStorage, api, ops }); } catch {} }
+      notify(`已复制昨日故障 ${plan.count} 条到今天`);
+      try {
+        const merged2 = await pullAndMerge({ storage: localStorage, api, days: [selDay, shiftDay(selDay, -1)] });
+        setStore(merged2 as Store);
+      } catch {}
+    } finally { setCopyBusy(false); }
+  };
+
   const faultBlocks = useMemo(() => groupBlocks(faults.map(d => ({ d, text: recs[d.uid].reason, time: recs[d.uid].time, bad: true, reporter: recs[d.uid].reporter }))), [faults, recs]);
   const recovBlocks = useMemo(() => groupBlocks(recov.map(({ d, prevReason }) => ({ d, text: `已恢复（昨日：${prevReason}）`, bad: false }))), [recov]);
 
@@ -289,6 +320,7 @@ export function OverviewApp({ session }: { session: Session | null }) {
         {recov.length ? renderBlocks(recovBlocks) : <div className="ov-none">无</div>}
       </div>
 
+      {isToday && <button className="ov-copyy" onClick={copyYesterday} disabled={copyBusy}>{copyBusy ? '复制中…' : '复制昨日故障到今天'}</button>}
       <button className="ov-copy" onClick={copyReport}>一键复制报告</button>
       <button className="ov-imgbtn" onClick={genImage} disabled={imgBusy}>{imgBusy ? '生成中…' : '一键生成图片'}</button>
       <button className="ov-csv" onClick={exportCsv}>导出全部历史 CSV</button>

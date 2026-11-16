@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 // @ts-ignore plain ESM data with unit tests
 import { DEVICES, CATS } from './devices.mjs';
 // @ts-ignore plain ESM logic with unit tests
-import { QUICK_REASONS, deviceByUid, pathOf, inspectionDayKey, dateCN, initStore, saveStore, dayRecords, countsForDay } from './equipmodel.mjs';
+import { QUICK_REASONS, deviceByUid, pathOf, inspectionDayKey, dateCN, initStore, saveStore, dayRecords, countsForDay, shiftDay, planCopyYesterday } from './equipmodel.mjs';
 // @ts-ignore plain ESM logic with unit tests
 import { authedApi, diffOps, pushOps, pullAndMerge, flushQueue, loadQueue } from './cloud.mjs';
 
@@ -156,6 +156,35 @@ export function EquipApp({ session }: { session: Session | null }) {
     showUndo('已清空今日故障', prevMap);
   };
 
+  // One-tap "copy yesterday": pull yesterday's cloud records first (this page
+  // normally syncs only today), then mark every one of them as faulted today.
+  // The copies are ordinary records — afterwards the user can uncheck the
+  // repaired ones or edit reasons as usual. Undo restores today's prior map.
+  const [copyBusy, setCopyBusy] = useState(false);
+  const copyYesterday = async () => {
+    if (copyBusy) return;
+    setCopyBusy(true);
+    try {
+      let base = store;
+      if (api) {
+        try {
+          const merged = await pullAndMerge({ storage: localStorage, api, days: [shiftDay(day, -1)] });
+          base = merged as Store;
+          setStore(merged as Store);
+        } catch {}
+      }
+      const plan = planCopyYesterday(base, day, new Date().toISOString());
+      if (!plan.yesterdayCount) { notify('昨日没有故障记录'); return; }
+      if (!plan.count) { notify('昨日的故障今天都已记录，无需复制'); return; }
+      if (!confirm(`把昨日（${dateCN(plan.yesterdayKey)}）的 ${plan.count} 条故障复制到今日？复制后仍可逐条取消或修改。`)) return;
+      const prevMap = { ...(dayRecords(base, day) as Record<string, Rec>) };
+      commit({ ...base, days: { ...base.days, [day]: { ...prevMap, ...plan.add } } });
+      showUndo(`已从昨日复制 ${plan.count} 条故障`, prevMap);
+      notify(`已复制昨日故障 ${plan.count} 条`);
+      navigator.vibrate?.(8);
+    } finally { setCopyBusy(false); }
+  };
+
   const jumpTo = (d: Dev) => {
     setSelCat(d.cat); setSelGroup(d.group); setSelSub(d.sub || null);
     setQuery(''); setHiUid(d.uid);
@@ -226,7 +255,10 @@ export function EquipApp({ session }: { session: Session | null }) {
                 ))}
               </div>
               <p className="eq2-note">每天凌晨 1:00 自动开始新一轮检查：今日状态全部恢复绿点，昨天的记录在「故障全览」里查看，不会丢失。</p>
-              {counts.total > 0 && <button className="eq2-clear" onClick={clearTodayFaults}>清空今日故障</button>}
+              <div className="eq2-actions">
+                <button className="eq2-copy" onClick={copyYesterday} disabled={copyBusy}>{copyBusy ? '复制中…' : '复制昨日故障'}</button>
+                {counts.total > 0 && <button className="eq2-clear" onClick={clearTodayFaults}>清空今日故障</button>}
+              </div>
             </>
           )}
 

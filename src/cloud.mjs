@@ -206,6 +206,14 @@ export async function apiChangePassword(storage, oldPassword, newPassword) {
 export function apiLogout(storage) { clearSession(storage); }
 // The hire date lives on the account too, so the 加入迪士尼 day counter matches on every phone.
 // Homepage content (shows + roster PDF), editable by manager accounts only.
+export async function apiGetCrowd() {
+  try {
+    const res = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'getCrowd' }) });
+    const data = await res.json().catch(() => null);
+    return data && data.ok ? data : null;
+  } catch { return null; }
+}
+
 export async function apiGetShows() {
   try { const r = await callApi({ action: 'getShows' }); return r && Array.isArray(r.shows) ? r.shows : null; }
   catch { return null; }

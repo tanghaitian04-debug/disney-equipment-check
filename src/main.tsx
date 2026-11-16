@@ -6,6 +6,7 @@ import { EquipApp } from './equip2';
 import { OverviewApp } from './overview';
 import { MineApp } from './mine';
 import { WeatherPanel } from './weather';
+import { CrowdPanel } from './crowd';
 // @ts-ignore plain ESM logic with unit tests
 import { loadSession, apiGetShows, apiGetRosterMeta, apiGetRosterPdf } from './cloud.mjs';
 import './style.css';
@@ -48,6 +49,7 @@ const I = {
   wrench: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14.7 6.3a4.2 4.2 0 0 1 5.9-4L17.8 5l1.6 1.6 2.8-2.8a4.2 4.2 0 0 1-5.6 5.3L9 16.7a2.1 2.1 0 1 1-3-3l2.6-2.6a4.2 4.2 0 0 1 6.1-4.8z" /></svg>,
   me: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="3.6" /><path d="M5 20c1.2-3.2 3.8-4.8 7-4.8s5.8 1.6 7 4.8" /></svg>,
   alert: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="8.6" /><path d="M12 7.6V13" /><circle cx="12" cy="16.4" r="0.4" fill="currentColor" /></svg>,
+  crowd: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="8.4" r="3.1" /><path d="M3.4 19.2c.9-2.9 2.9-4.4 5.6-4.4s4.7 1.5 5.6 4.4" /><circle cx="17.2" cy="9.6" r="2.5" /><path d="M16.9 14.9c1.9.3 3.2 1.6 3.9 4.3" /></svg>,
   cal: <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5" /><path d="M3.5 10h17M8 3v4M16 3v4" /></svg>,
 };
 
@@ -216,6 +218,7 @@ function App() {
     { id: 'wind', label: '风速', icon: I.wind },
     { id: 'device', label: '设备', icon: I.wrench },
     { id: 'overview', label: '故障全览', icon: I.alert },
+    { id: 'crowd', label: '客流', icon: I.crowd },
     { id: 'mine', label: '我的', icon: I.me },
   ];
 
@@ -361,6 +364,13 @@ function App() {
             <button onClick={() => setTab('mine')}>去登录</button>
           </div>
         ))}
+
+        {tab === 'crowd' && (
+          <>
+            <div className="sect-title">乐园客流</div>
+            <CrowdPanel />
+          </>
+        )}
 
         {tab === 'mine' && (
           <>

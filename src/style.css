@@ -375,6 +375,10 @@ button{font:inherit;cursor:pointer;touch-action:manipulation}
 .eq2-dot{display:inline-block;width:11px;height:11px;border-radius:50%;background:#3ecf6e;margin-left:8px}
 .eq2-dot.bad{background:#f04438}
 .eq2-note{font-size:12px;color:var(--txt-3);line-height:1.7;margin:12px 2px 0}
+.eq2-actions{display:flex;gap:10px;margin-top:10px}
+.eq2-actions .eq2-clear{margin-top:0;flex:1}
+.eq2-copy{flex:1;min-height:44px;border-radius:11px;border:1px solid rgba(240,199,106,.55);background:rgba(240,199,106,.1);color:var(--gold);font-size:13.5px;font-weight:700}
+.eq2-copy:disabled{opacity:.55}
 .eq2-clear{margin-top:10px;width:100%;min-height:44px;border-radius:11px;border:1px solid rgba(255,92,72,.4);background:none;color:#ff9d8a;font-size:13.5px;font-weight:600}
 .ov-head{display:flex;align-items:center;justify-content:space-between;margin:2px 0 4px}
 .ov-title{font-size:19px;margin:0}
@@ -395,6 +399,8 @@ button{font:inherit;cursor:pointer;touch-action:manipulation}
 .ov-text.ok{color:#8fe3ae}
 .ov-time{flex:none;font-size:11.5px;color:var(--txt-3)}
 .ov-none{font-size:13px;color:var(--txt-3);padding:2px 0 4px}
+.ov-copyy{width:100%;min-height:50px;border-radius:13px;border:1.5px solid var(--gold);background:rgba(216,178,90,.10);color:var(--gold);font-size:15.5px;font-weight:800;margin-top:14px;cursor:pointer}
+.ov-copyy:disabled{opacity:.55}
 .ov-copy{width:100%;min-height:50px;border:0;border-radius:13px;background:var(--gold);color:var(--gold-ink);font-size:15.5px;font-weight:800;margin-top:14px}
 .ov-csv{width:100%;min-height:44px;border-radius:11px;border:1px solid var(--card-line);background:rgba(255,255,255,.04);color:var(--txt-2);font-size:13.5px;font-weight:600;margin-top:9px}
 .ov-note{font-size:12px;color:var(--txt-3);line-height:1.7;margin-top:10px}
@@ -585,3 +591,17 @@ button.rostercard{font:inherit;text-align:left;width:100%;cursor:pointer}
 .wx-ftemp{flex:0 0 auto;font-size:13.5px;font-weight:700}
 .wx-aqirow{display:flex;align-items:center;gap:12px}
 .wx-aqi{font-size:34px;font-weight:800;line-height:1.1}
+.cd-heat{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+.cd-num{font-size:40px;font-weight:800;line-height:1.15;letter-spacing:.5px}
+.cd-cap{font-size:12px;color:var(--txt-2);margin-top:4px}
+.cd-cmp{flex:0 0 auto;text-align:right;font-size:12px;color:var(--txt-2);display:flex;flex-direction:column;gap:8px;padding-top:6px}
+.cd-cmp b{display:block;font-size:15px;color:var(--txt);margin-top:1px}
+.cd-legend{display:flex;gap:14px;font-size:12px;color:var(--txt-2);margin:2px 0 6px}
+.cd-legend i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+.cd-tip{font-size:12.5px;margin-top:8px;min-height:18px;color:var(--txt)}
+.cd-ride{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid rgba(255,255,255,.07)}
+.cd-rname{flex:1;font-size:13.5px;min-width:0}
+.cd-rwait{flex:0 0 auto;font-size:13.5px;font-weight:700;color:var(--gold)}
+.cd-rwait.closed{color:var(--txt-3);font-weight:400}
+.cd-inforow{display:flex;justify-content:space-between;gap:10px;font-size:13px;padding:7px 0;border-top:1px solid rgba(255,255,255,.07)}
+.cd-inforow span:first-child{color:var(--txt-2);flex:0 0 auto}

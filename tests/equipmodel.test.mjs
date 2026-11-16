@@ -86,3 +86,33 @@ test('report text follows the V2.1 format with faults and recovered sections', (
   assert.ok(empty.includes('当前故障：0台'));
   assert.ok(empty.includes('已恢复：0台'));
 });
+
+test('planCopyYesterday copies all of yesterday, skips devices already recorded today', async () => {
+  const { planCopyYesterday, emptyStore } = await import('../src/equipmodel.mjs');
+  const store = emptyStore();
+  store.days['2026-11-15'] = {
+    s1: { name: 'A', path: 'p', reason: '不亮', time: '2026-11-15T06:00:00.000Z' },
+    s2: { name: 'B', path: 'p', reason: '闪烁', time: '2026-11-15T06:01:00.000Z' },
+    s3: { name: 'C', path: 'p', reason: '不受控', time: '2026-11-15T06:02:00.000Z' },
+  };
+  store.days['2026-11-16'] = {
+    s2: { name: 'B', path: 'p', reason: '颜色异常', time: '2026-11-16T06:00:00.000Z' },
+  };
+  const plan = planCopyYesterday(store, '2026-11-16', '2026-11-16T06:05:00.000Z');
+  assert.equal(plan.yesterdayKey, '2026-11-15');
+  assert.equal(plan.yesterdayCount, 3);
+  assert.equal(plan.count, 2);
+  assert.equal(plan.skipped, 1);
+  assert.deepEqual(Object.keys(plan.add).sort(), ['s1', 's3']);
+  assert.equal(plan.add.s1.reason, '不亮');
+  assert.equal(plan.add.s1.time, '2026-11-16T06:05:00.000Z');
+  // today's own record for s2 keeps its own (edited) reason, untouched
+  assert.equal(plan.add.s2, undefined);
+});
+
+test('planCopyYesterday with no yesterday records plans nothing', async () => {
+  const { planCopyYesterday, emptyStore } = await import('../src/equipmodel.mjs');
+  const plan = planCopyYesterday(emptyStore(), '2026-11-16', '2026-11-16T06:05:00.000Z');
+  assert.equal(plan.yesterdayCount, 0);
+  assert.equal(plan.count, 0);
+});
