@@ -18,7 +18,7 @@ export const ACCOUNTS = [
   ['chencai', '陈财'], ['zhangyunxiang', '张云翔'],
 ].map(([username, name]) => ({ username, name }));
 export const MANAGER_ACCOUNTS = [
-  ['amao', 'Amao'], ['claire', 'CLAIRE'], ['sharon', 'Sharon'], ['qiqi', '七七'],
+  ['amao', 'Amao'], ['claire', 'CLAIRE'], ['sharon', 'Sharon'], ['qiqi', 'NTS'],
 ].map(([username, name]) => ({ username, name, role: 'manager' }));
 export const SESSION_KEY = 'toolbox-session-v1';
 export const QUEUE_KEY = 'equipment-cloud-queue-v1';

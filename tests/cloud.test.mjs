@@ -123,7 +123,7 @@ test('session helpers round-trip and reject junk', () => {
 test('apiLogin persists the role from the login response', async () => {
   const st = fakeStorage();
   const realFetch = globalThis.fetch;
-  globalThis.fetch = async () => ({ ok: true, json: async () => ({ ok: true, token: 'tok1', username: 'qiqi', name: '七七', mustChange: true, role: 'manager', avatar: null, joinDate: null }) });
+  globalThis.fetch = async () => ({ ok: true, json: async () => ({ ok: true, token: 'tok1', username: 'qiqi', name: 'NTS', mustChange: true, role: 'manager', avatar: null, joinDate: null }) });
   try {
     const s = await apiLogin(st, 'qiqi', '000000');
     assert.equal(s.role, 'manager');
@@ -133,7 +133,7 @@ test('apiLogin persists the role from the login response', async () => {
 
 test('manager writes actually reach the API (authedApi currying regression)', async () => {
   const st = fakeStorage();
-  saveSession(st, { token: 'tok-mgr', username: 'qiqi', name: '七七', mustChange: false, role: 'manager' });
+  saveSession(st, { token: 'tok-mgr', username: 'qiqi', name: 'NTS', mustChange: false, role: 'manager' });
   const sent = [];
   const realFetch = globalThis.fetch;
   globalThis.fetch = async (url, opts) => { sent.push(JSON.parse(opts.body)); return { ok: true, json: async () => ({ ok: true }) }; };
