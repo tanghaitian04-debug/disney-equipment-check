@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { analyzeRain, intensityBand, alertColor } from '../src/wxlogic.mjs';
+import { analyzeRain, intensityBand, alertColor, dayLabel, dayText, aqiColor } from '../src/wxlogic.mjs';
 
 const NOW = Date.parse('2026-11-16T07:00:00+08:00');
 const pts = (arr, type = 'rain') => arr.map((p, i) => ({ t: new Date(NOW + i * 5 * 60000).toISOString(), p, type }));
@@ -52,4 +52,29 @@ test('alert color mapping and fallback', () => {
   assert.equal(alertColor('RED').hex, '#ff5a52');
   assert.equal(alertColor('').label, '');
   assert.equal(alertColor(undefined).hex, '#9aa4b8');
+});
+
+test('dayLabel: today / tomorrow / weekday (local-time safe)', () => {
+  const now = new Date(2026, 10, 16, 13).getTime(); // Mon 2026-11-16 local
+  assert.deepEqual(dayLabel('2026-11-16', now), { md: '11月16日', rel: '今天', wd: '周一' });
+  assert.equal(dayLabel('2026-11-17', now).rel, '明天');
+  const d3 = dayLabel('2026-11-19', now);
+  assert.equal(d3.rel, '');
+  assert.equal(d3.wd, '周四');
+  assert.deepEqual(dayLabel('bad', now), { md: '', rel: '', wd: '' });
+  assert.deepEqual(dayLabel(null, now), { md: '', rel: '', wd: '' });
+});
+
+test('dayText joins day/night only when different', () => {
+  assert.equal(dayText({ textDay: '晴', textNight: '多云' }), '晴转多云');
+  assert.equal(dayText({ textDay: '晴', textNight: '晴' }), '晴');
+  assert.equal(dayText({ textDay: '', textNight: '阴' }), '阴');
+  assert.equal(dayText(null), '');
+});
+
+test('aqiColor prefers valid API hex, else CN level map', () => {
+  assert.equal(aqiColor('1', '#00e400'), '#00e400');
+  assert.equal(aqiColor('3', ''), '#ff7e00');
+  assert.equal(aqiColor('2', 'red'), '#ffe93e');
+  assert.equal(aqiColor('', null), '#9aa4b8');
 });

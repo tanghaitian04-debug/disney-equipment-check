@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 // @ts-ignore plain ESM logic with unit tests
 import { apiGetWeather } from './cloud.mjs';
 // @ts-ignore pure weather helpers with unit tests
-import { analyzeRain, alertColor } from './wxlogic.mjs';
+import { analyzeRain, alertColor, dayLabel, dayText, aqiColor } from './wxlogic.mjs';
 
 // Wind-page weather modules: QWeather minutely rain + official alerts, proxied
 // by the cloud function (credentials never reach the client). Data refreshes
@@ -135,6 +135,78 @@ function AlertsCard({ sec, busy, onRefresh, netFail }: any) {
   return <Card title="官方气象预警" busy={busy} onRefresh={onRefresh}>{body}</Card>;
 }
 
+function ForecastCard({ sec, busy, onRefresh, netFail }: any) {
+  let body: any = null;
+  if (!sec) {
+    body = <div className="wx-big">{netFail ? '天气预报暂不可用' : '正在获取天气预报…'}</div>;
+  } else if (sec.status === 'not_configured') {
+    body = (<>
+      <div className="wx-big">天气服务尚未配置</div>
+      <div className="wx-note2">管理员完成和风天气配置后，这里会自动显示天气预报。</div>
+    </>);
+  } else if (sec.status === 'error' || !Array.isArray(sec.days) || !sec.days.length) {
+    body = <div className="wx-big">天气预报暂不可用</div>;
+  } else {
+    const now = Date.now();
+    const first = sec.days[0];
+    const rest = sec.days.slice(1);
+    const fl = dayLabel(first.date, now);
+    const meta = [
+      first.tMin != null && first.tMax != null ? `${first.tMin}° ~ ${first.tMax}°` : '',
+      first.precip > 0 ? `降水 ${first.precip}mm` : '无降水',
+      first.windDir ? `${first.windDir}${first.windScale ? ` ${first.windScale}级` : ''}` : '',
+      first.humidity != null ? `湿度 ${first.humidity}%` : '',
+    ].filter(Boolean).join(' · ');
+    body = (<>
+      <div className="wx-big">{`${fl.rel || fl.md} ${dayText(first)}`.trim()}</div>
+      {meta ? <div className="wx-meta">{meta}</div> : null}
+      {rest.map((d: any, i: number) => {
+        const l = dayLabel(d.date, now);
+        return (
+          <div className="wx-frow" key={d.date || i}>
+            <span className="wx-fdate">{l.md} {l.wd}</span>
+            <span className="wx-ftext">{dayText(d)}{d.precip > 0 ? ` · 降水 ${d.precip}mm` : ''}</span>
+            <span className="wx-ftemp">{d.tMin != null && d.tMax != null ? `${d.tMin}°~${d.tMax}°` : ''}</span>
+          </div>
+        );
+      })}
+      <div className="wx-foot">{`数据来源：和风天气（QWeather）${sec.updateTime ? ` · 更新于 ${hm(sec.updateTime)}` : ''}${sec.status === 'stale' ? ' · 数据可能已过期' : ''}`}</div>
+    </>);
+  }
+  return <Card title="天气预报" busy={busy} onRefresh={onRefresh}>{body}</Card>;
+}
+
+function AirCard({ sec, busy, onRefresh, netFail }: any) {
+  let body: any = null;
+  if (!sec) {
+    body = <div className="wx-big">{netFail ? '空气质量暂不可用' : '正在获取空气质量…'}</div>;
+  } else if (sec.status === 'not_configured') {
+    body = (<>
+      <div className="wx-big">天气服务尚未配置</div>
+      <div className="wx-note2">管理员完成和风天气配置后，这里会自动显示空气质量。</div>
+    </>);
+  } else if (sec.status === 'error' || (sec.aqi == null && !sec.aqiDisplay)) {
+    body = <div className="wx-big">空气质量暂不可用</div>;
+  } else {
+    const meta = [
+      sec.primaryName ? `首要污染物：${sec.primaryFull || sec.primaryName}` : '',
+      sec.pm2p5 != null ? `PM2.5 ${sec.pm2p5} μg/m³` : '',
+      sec.pm10 != null ? `PM10 ${sec.pm10} μg/m³` : '',
+    ].filter(Boolean).join(' · ');
+    const attrs = Array.isArray(sec.attributions) ? sec.attributions.filter(Boolean) : [];
+    body = (<>
+      <div className="wx-aqirow">
+        <span className="wx-aqi">{sec.aqiDisplay || sec.aqi}</span>
+        {sec.category ? <span className="wx-chip" style={{ background: aqiColor(sec.level, sec.colorHex) }}>{sec.category}</span> : null}
+      </div>
+      {meta ? <div className="wx-meta">{meta}</div> : null}
+      {sec.advice ? <div className="wx-sub">{sec.advice}</div> : null}
+      <div className="wx-foot">{`${attrs.length ? attrs.join(' ') : '数据来源：和风天气（QWeather）'}${sec.status === 'stale' ? ' · 数据可能已过期' : ''}`}</div>
+    </>);
+  }
+  return <Card title="空气质量" busy={busy} onRefresh={onRefresh}>{body}</Card>;
+}
+
 export function WeatherPanel() {
   const [data, setData] = useState<any>(null);
   const [busy, setBusy] = useState(false);
@@ -153,5 +225,7 @@ export function WeatherPanel() {
   return (<>
     <RainCard sec={data ? data.rain : null} busy={busy} onRefresh={load} netFail={netFail && !data} />
     <AlertsCard sec={data ? data.alerts : null} busy={busy} onRefresh={load} netFail={netFail && !data} />
+    <ForecastCard sec={data ? data.forecast : null} busy={busy} onRefresh={load} netFail={netFail && !data} />
+    <AirCard sec={data ? data.air : null} busy={busy} onRefresh={load} netFail={netFail && !data} />
   </>);
 }

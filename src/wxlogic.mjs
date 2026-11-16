@@ -49,3 +49,35 @@ export const ALERT_COLORS = {
 export function alertColor(code) {
   return ALERT_COLORS[String(code || '').toLowerCase()] || { label: '', hex: '#9aa4b8' };
 }
+
+// Label for a forecast day: 'M月D日', a relative name for today/tomorrow,
+// and the weekday. fxDate is 'YYYY-MM-DD' in local time.
+const WEEKDAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+export function dayLabel(fxDate, nowMs) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(fxDate || ''));
+  if (!m) return { md: '', rel: '', wd: '' };
+  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  if (isNaN(d.getTime())) return { md: '', rel: '', wd: '' };
+  const now = new Date(nowMs);
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const diff = Math.round((d.getTime() - today.getTime()) / 86400000);
+  return {
+    md: `${Number(m[2])}月${Number(m[3])}日`,
+    rel: diff === 0 ? '今天' : diff === 1 ? '明天' : '',
+    wd: WEEKDAYS[d.getDay()],
+  };
+}
+
+// Day/night condition text: '晴转多云' when they differ, else the one text.
+export function dayText(d) {
+  const day = (d && d.textDay) || '', night = (d && d.textNight) || '';
+  if (day && night && day !== night) return `${day}转${night}`;
+  return day || night || '';
+}
+
+// CN AQI level (1-6) colors, used only when the API-provided color is absent.
+export const AQI_LEVEL_COLORS = { '1': '#00e400', '2': '#ffe93e', '3': '#ff7e00', '4': '#ff0000', '5': '#99004c', '6': '#7e0023' };
+export function aqiColor(level, apiHex) {
+  if (typeof apiHex === 'string' && /^#[0-9a-f]{6}$/i.test(apiHex)) return apiHex;
+  return AQI_LEVEL_COLORS[String(level || '')] || '#9aa4b8';
+}
