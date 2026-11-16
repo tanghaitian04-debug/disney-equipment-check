@@ -225,7 +225,7 @@ function App() {
   return (
     <>
       {tab === 'home' && <div className="homebg" aria-hidden="true" />}
-      <div className={'shell' + (tab === 'home' ? ' hasbg' : ' notoolbar')}>
+      <div id="shell" className={'shell' + (tab === 'home' ? ' hasbg' : ' notoolbar')}>
         {tab === 'home' && (
           <>
             <div className="datecard">
@@ -389,7 +389,7 @@ function App() {
         )}
         <nav className="tabbar-main">
           {tabs.map(t => (
-            <button key={t.id} className={tab === t.id ? 'active' : ''} onClick={() => { setTab(t.id); window.scrollTo(0, 0); }}>{t.icon}<span>{t.label}</span></button>
+            <button key={t.id} className={tab === t.id ? 'active' : ''} onClick={() => { setTab(t.id); document.getElementById('shell')?.scrollTo(0, 0); }}>{t.icon}<span>{t.label}</span></button>
           ))}
         </nav>
       </div>

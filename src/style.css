@@ -8,10 +8,12 @@
   font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Helvetica Neue",sans-serif;
 }
 *{box-sizing:border-box}
-body{margin:0;color:var(--txt);background:linear-gradient(180deg,#0a2148 0%,#061230 55%,#040b20 100%);background-attachment:fixed;min-height:100vh}
+html{height:100%}
+body{margin:0;color:var(--txt);background:linear-gradient(180deg,#0a2148 0%,#061230 55%,#040b20 100%);background-attachment:fixed;height:100%;overflow:hidden}
+#root{display:flex;flex-direction:column;height:100vh;height:100dvh;max-width:640px;margin:0 auto}
 button{font:inherit;cursor:pointer;touch-action:manipulation}
-.shell{max-width:640px;margin:auto;padding:calc(14px + env(safe-area-inset-top)) 16px calc(158px + env(safe-area-inset-bottom))}
-.shell.notoolbar{padding-bottom:calc(96px + env(safe-area-inset-bottom))}
+.shell{flex:1 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;width:100%;padding:calc(14px + env(safe-area-inset-top)) 16px 28px}
+.shell.notoolbar{padding-bottom:28px}
 
 /* —— 顶部 —— */
 .hero{position:relative;border-radius:22px;padding:22px 20px 20px;overflow:hidden;min-height:208px;display:flex;flex-direction:column;justify-content:flex-end;background:linear-gradient(180deg,rgba(8,20,48,.10) 30%,rgba(8,20,48,.58) 82%),url(/bg.jpg) center 18%/cover no-repeat,linear-gradient(135deg,#123064,#0a1e42 60%,#07142e);border:1px solid var(--card-line)}
@@ -64,7 +66,7 @@ button{font:inherit;cursor:pointer;touch-action:manipulation}
 #preview{white-space:pre-wrap;word-break:break-word;background:rgba(255,255,255,.045);border:1px solid var(--card-line);border-radius:14px;padding:15px 14px;font-size:13.5px;line-height:1.75;color:var(--txt);margin:8px 0 0;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif}
 
 /* —— 底部动作条（在标签栏上方） —— */
-.bottomstack{position:fixed;bottom:0;left:0;right:0;margin:0 auto;width:100%;max-width:640px;z-index:40;display:flex;flex-direction:column}
+.bottomstack{flex:0 0 auto;width:100%;display:flex;flex-direction:column}
 .actionbar{display:flex;gap:9px;padding:10px 16px;background:rgba(6,17,40,.92);backdrop-filter:blur(12px);border-top:1px solid var(--card-line)}
 .actionbar button{flex:1;min-height:50px;border-radius:13px;font-size:15.5px;font-weight:700;border:1px solid rgba(255,255,255,.22);background:transparent;color:var(--txt)}
 .actionbar button:active{transform:scale(.985)}
