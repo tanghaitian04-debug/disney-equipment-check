@@ -310,6 +310,10 @@ function App() {
                 <pre id="preview">{generated}</pre>
               </section>
             )}
+            <div className="actionbar">
+              <button id="btn-generate" onClick={() => { doGenerate(); navigator.vibrate?.(10); }}>生成文案</button>
+              <button id="btn-copy" onClick={doCopy}>复制</button>
+            </div>
           </>
         )}
 
@@ -381,12 +385,6 @@ function App() {
       </div>
 
       <div className="bottomstack">
-        {tab === 'home' && (
-          <div className="actionbar">
-            <button id="btn-generate" onClick={() => { doGenerate(); navigator.vibrate?.(10); }}>生成文案</button>
-            <button id="btn-copy" onClick={doCopy}>复制</button>
-          </div>
-        )}
         <nav className="tabbar-main">
           {tabs.map(t => (
             <button key={t.id} className={tab === t.id ? 'active' : ''} onClick={() => { setTab(t.id); document.getElementById('shell')?.scrollTo(0, 0); }}>{t.icon}<span>{t.label}</span></button>
