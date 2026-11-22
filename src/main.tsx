@@ -256,9 +256,9 @@ function App() {
                 )}
               </button>
             ) : (
-              <a className="rostercard" href="/files/roster-1115-1121.pdf" target="_blank" rel="noreferrer">
-                <span className="rc-head"><span className="rc-title">本周班表</span><span className="rc-range">11月15日 – 11月21日</span><span className="rc-open">打开完整 PDF ›</span></span>
-                <span className="rc-imgwrap"><img src="/files/roster-1115-1121.jpg" alt="11月15日至11月21日班表预览" loading="lazy" /></span>
+              <a className="rostercard" href="/files/roster-1122-1128.pdf" target="_blank" rel="noreferrer">
+                <span className="rc-head"><span className="rc-title">本周班表</span><span className="rc-range">11月22日 – 11月28日</span><span className="rc-open">打开完整 PDF ›</span></span>
+                <span className="rc-imgwrap"><img src="/files/roster-1122-1128.jpg" alt="11月22日至11月28日班表预览" loading="lazy" /></span>
                 <span className="rc-hint">点开可看完整班表（PDF）</span>
               </a>
             )}
